@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # Chefaa NestJS Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chefaa-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+    volumes:
+      # Persistent storage volume for orders, prescriptions, and users data
+      - chefaa-data:/app/data
+    networks:
+      - chefaa-network
+
+  # Chefaa React Frontend + Nginx Web Server & Reverse Proxy
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: chefaa-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - chefaa-network
+
+networks:
+  chefaa-network:
+    driver: bridge
+
+volumes:
+  chefaa-data:
+    driver: local

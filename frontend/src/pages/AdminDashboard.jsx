@@ -1,0 +1,620 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { useCms } from '../context/CmsContext';
+
+// Layout & Common
+
+import { AdminLayout } from '../components/admin/layout/AdminLayout';
+import { AuthRoleGateway } from '../components/admin/AuthRoleGateway';
+
+// Modals
+
+import { OrderDetailModal } from '../components/admin/modals/OrderDetailModal';
+import { PrescriptionReviewModal } from '../components/admin/modals/PrescriptionReviewModal';
+import { ExcelImportModal } from '../components/admin/modals/ExcelImportModal';
+import { NewStaffModal } from '../components/admin/modals/NewStaffModal';
+import { NewProductModal } from '../components/admin/modals/NewProductModal';
+import { NewBannerModal } from '../components/admin/modals/NewBannerModal';
+import { NewCouponModal } from '../components/admin/modals/NewCouponModal';
+import { NewArticleModal } from '../components/admin/modals/NewArticleModal';
+import { NewCategoryModal } from '../components/admin/modals/NewCategoryModal';
+import { NewMediaModal } from '../components/admin/modals/NewMediaModal';
+
+// Tabs
+
+import { OrdersTab } from '../components/admin/tabs/OrdersTab';
+import { PrescriptionsTab } from '../components/admin/tabs/PrescriptionsTab';
+import { ProductsTab } from '../components/admin/tabs/ProductsTab';
+import { StaffTab } from '../components/admin/tabs/StaffTab';
+import { RefillsTab } from '../components/admin/tabs/RefillsTab';
+import { CustomersTab } from '../components/admin/tabs/CustomersTab';
+import { AnalyticsTab } from '../components/admin/tabs/AnalyticsTab';
+import { CourierView } from '../components/admin/tabs/CourierView';
+import { CmsTab } from '../components/admin/tabs/CmsTab';
+
+export const AdminDashboard = ({ onBackToStore }) => {
+  const { user, login, logout, isAdmin, isPharmacist, isCourier, isSupport } = useAuth();
+  const { refreshCmsData } = useCms();
+
+  // Tab state (defaults based on role)
+  const [activeTab, setActiveTab] = useState(() => {
+    if (user?.role === 'PHARMACIST') return 'prescriptions';
+    if (user?.role === 'DELIVERY') return 'courier';
+    return 'orders';
+  });
+
+  const [cmsActiveSubTab, setCmsActiveSubTab] = useState('identity');
+
+  // Data state
+  const [stats, setStats] = useState(null);
+  const [courierStats, setCourierStats] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [productsList, setProductsList] = useState([]);
+  const [staffList, setStaffList] = useState([]);
+  const [refillsList, setRefillsList] = useState([]);
+  const [customersList, setCustomersList] = useState([]);
+
+
+  // Filter & Search states
+  const [orderFilter, setOrderFilter] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // CMS dynamic state
+  const [cmsSettings, setCmsSettings] = useState(null);
+  const [cmsBanners, setCmsBanners] = useState([]);
+  const [cmsCategories, setCmsCategories] = useState([]);
+  const [cmsPromoCodes, setCmsPromoCodes] = useState([]);
+  const [cmsArticles, setCmsArticles] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const settingsInitializedRef = useRef(false);
+
+  // Selected for modals
+  const [selectedOrderForDetail, setSelectedOrderForDetail] = useState(null);
+  const [selectedRxForReview, setSelectedRxForReview] = useState(null);
+
+  // New Item Modals
+  const [isNewStaffModalOpen, setIsNewStaffModalOpen] = useState(false);
+  const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
+  const [isNewBannerModalOpen, setIsNewBannerModalOpen] = useState(false);
+  const [isNewCouponModalOpen, setIsNewCouponModalOpen] = useState(false);
+  const [isNewArticleModalOpen, setIsNewArticleModalOpen] = useState(false);
+  const [isNewCategoryModalOpen, setIsNewCategoryModalOpen] = useState(false);
+  const [isNewMediaModalOpen, setIsNewMediaModalOpen] = useState(false);
+  const [isExcelImportModalOpen, setIsExcelImportModalOpen] = useState(false);
+
+  // Platform Settings Form
+
+  const [settingsForm, setSettingsForm] = useState({
+    websiteName: '',
+    brandTagline: '',
+    brandDescription: '',
+    logoText: '',
+    logoUrl: '',
+    faviconUrl: '',
+    appIconUrl: '',
+    primaryColor: '',
+    accentColor: '',
+    hotline: '',
+    whatsapp: '',
+    supportEmail: '',
+    address: '',
+    workingHours: '',
+    operatingCities: [],
+    deliveryFee: 0,
+    freeDeliveryThreshold: 0,
+    estimatedDeliveryMin: 0,
+    announcementText: '',
+    isAnnouncementActive: true,
+    seoTitle: '',
+    seoDescription: '',
+    seoKeywords: '',
+    socialLinks: {
+      facebook: '',
+      instagram: '',
+      twitter: '',
+      linkedin: '',
+      youtube: '',
+      tiktok: '',
+    },
+    navigationMenu: [],
+    footerColumns: [],
+    mediaLibrary: [],
+  });
+
+  const fetchData = async (forceInitSettings = false) => {
+    if (forceInitSettings || !settingsInitializedRef.current) {
+      setLoading(true);
+    }
+    try {
+      if (user?.role === 'DELIVERY') {
+        const [delivOrders, cStats] = await Promise.all([
+          api.getAllOrders().catch(() => []),
+          api.getCourierStats().catch(() => null),
+        ]);
+        setOrders(Array.isArray(delivOrders) ? delivOrders : []);
+        setCourierStats(cStats);
+      } else {
+        const shouldFetchProducts = forceInitSettings || productsList.length === 0;
+        const [
+          statsData,
+          ordersData,
+          rxData,
+          staffData,
+          custData,
+          prodsData,
+          refillsData,
+          bannersData,
+          categoriesData,
+          couponsData,
+          articlesData,
+          settingsData,
+        ] = await Promise.all([
+          api.getDashboardStats().catch(() => null),
+          api.getAllOrders().catch(() => []),
+          api.getAllPrescriptions().catch(() => []),
+          api.getAllStaff().catch(() => []),
+          api.getAllCustomers().catch(() => []),
+          shouldFetchProducts ? api.getProducts({ all: true }).catch(() => []) : Promise.resolve(null),
+          api.getAllRefills().catch(() => []),
+          api.getBanners().catch(() => []),
+          api.getCMSCategories().catch(() => []),
+          api.getPromoCodes().catch(() => []),
+          api.getArticles().catch(() => []),
+          api.getPlatformSettings().catch(() => null),
+        ]);
+
+        setStats(statsData && !statsData.statusCode ? statsData : null);
+        setOrders(Array.isArray(ordersData) ? ordersData : []);
+        setPrescriptions(Array.isArray(rxData) ? rxData : []);
+        setStaffList(Array.isArray(staffData) ? staffData : []);
+        setCustomersList(Array.isArray(custData) ? custData : []);
+        if (Array.isArray(prodsData)) {
+          setProductsList(prodsData);
+        }
+        setRefillsList(Array.isArray(refillsData) ? refillsData : []);
+        setCmsBanners(Array.isArray(bannersData) ? bannersData : []);
+        setCmsCategories(Array.isArray(categoriesData) ? categoriesData : []);
+        setCmsPromoCodes(Array.isArray(couponsData) ? couponsData : []);
+        setCmsArticles(Array.isArray(articlesData) ? articlesData : []);
+
+        if (settingsData) {
+          setCmsSettings(settingsData);
+          if (forceInitSettings || !settingsInitializedRef.current) {
+            settingsInitializedRef.current = true;
+            setSettingsForm({
+              websiteName: settingsData.websiteName || 'الصيدلية الذكية',
+              brandTagline: settingsData.brandTagline || 'صيدليتك أونلاين 24/7',
+              brandDescription: settingsData.brandDescription || '',
+              logoText: settingsData.logoText || 'صـ',
+              logoUrl: settingsData.logoUrl || '',
+              faviconUrl: settingsData.faviconUrl || '',
+              appIconUrl: settingsData.appIconUrl || '',
+              primaryColor: settingsData.primaryColor || '#059669',
+              accentColor: settingsData.accentColor || '#0d9488',
+              hotline: settingsData.hotline || '19876',
+              whatsapp: settingsData.whatsapp || '01012345678',
+              supportEmail: settingsData.supportEmail || 'admin@pharmacy.com',
+              address: settingsData.address || 'شارع التسعين، التجمع الخامس، القاهرة، مصر',
+              workingHours: settingsData.workingHours || 'خدمة 24 ساعة طوال أيام الأسبوع',
+              operatingCities: settingsData.operatingCities || ['القاهرة', 'الجيزة', 'الإسكندرية', 'المنصورة', 'طنطا'],
+              deliveryFee: settingsData.deliveryFee ?? 25,
+              freeDeliveryThreshold: settingsData.freeDeliveryThreshold ?? 500,
+              estimatedDeliveryMin: settingsData.estimatedDeliveryMin ?? 35,
+              announcementText: settingsData.announcementText || '',
+              isAnnouncementActive: settingsData.isAnnouncementActive ?? true,
+              seoTitle: settingsData.seoTitle || '',
+              seoDescription: settingsData.seoDescription || '',
+              seoKeywords: settingsData.seoKeywords || '',
+              socialLinks: {
+                facebook: settingsData.socialLinks?.facebook || '',
+                instagram: settingsData.socialLinks?.instagram || '',
+                twitter: settingsData.socialLinks?.twitter || '',
+                linkedin: settingsData.socialLinks?.linkedin || '',
+                youtube: settingsData.socialLinks?.youtube || '',
+                tiktok: settingsData.socialLinks?.tiktok || '',
+              },
+              navigationMenu: settingsData.navigationMenu || [],
+              footerColumns: settingsData.footerColumns || [],
+              mediaLibrary: settingsData.mediaLibrary || [],
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    settingsInitializedRef.current = false;
+    fetchData(true);
+    const interval = setInterval(() => {
+      fetchData(false);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [user?.role]);
+
+  // Order Status Update
+  const handleUpdateOrderStatus = async (orderId, newStatus, courierId) => {
+    try {
+      await api.updateOrderStatus(orderId, {
+        status: newStatus,
+        assignedCourierId: courierId,
+      });
+      fetchData();
+    } catch (err) {
+      alert('فشل تحديث حالة الطلب: ' + err.message);
+    }
+  };
+
+  // Staff Creation & Deletion
+  const handleCreateStaff = async (formData) => {
+    try {
+      await api.createStaff(formData);
+      alert('تم إنشاء حساب الموظف بنجاح!');
+      fetchData();
+    } catch (err) {
+      alert('خطأ أثناء إنشاء حساب الموظف: ' + err.message);
+    }
+  };
+
+  const handleDeleteStaff = async (id) => {
+    if (!window.confirm('هل أنت متأكد من حذف حساب هذا الموظف؟')) return;
+    try {
+      await api.deleteStaff(id);
+      fetchData();
+    } catch (err) {
+      alert('فشل الحذف: ' + err.message);
+    }
+  };
+
+  // Product Creation
+  const handleCreateProduct = async (formData) => {
+    try {
+      await api.createProduct(formData);
+      alert('تمت إضافة الدواء بنجاح إلى قاعدة البيانات!');
+      fetchData();
+    } catch (err) {
+      alert('خطأ أثناء إضافة المنتج: ' + err.message);
+    }
+  };
+
+  // Prescription Quotation
+  const handleSubmitQuote = async (rxId, quoteData) => {
+    try {
+      await api.quotePrescription(rxId, quoteData);
+      alert('تم إرسال التسعيرة للعميل بنجاح!');
+      setSelectedRxForReview(null);
+      fetchData();
+    } catch (err) {
+      alert('فشل تسعير الروشتة: ' + err.message);
+    }
+  };
+
+  // CMS Handlers
+  const handleCreateBanner = async (bannerData) => {
+    try {
+      await api.createBanner(bannerData);
+      alert('تمت إضافة البانر بنجاح للموقع!');
+      fetchData();
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل إضافة البانر: ' + err.message);
+    }
+  };
+
+  const handleDeleteBanner = async (id) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا البانر؟')) return;
+    try {
+      await api.deleteBanner(id);
+      fetchData();
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل الحذف: ' + err.message);
+    }
+  };
+
+  const handleCreateCoupon = async (couponData) => {
+    try {
+      await api.createPromoCode(couponData);
+      alert('تم تفعيل كود الخصم بنجاح!');
+      fetchData();
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل إنشاء كود الخصم: ' + err.message);
+    }
+  };
+
+  const handleDeleteCoupon = async (id) => {
+    if (!window.confirm('هل أنت متأكد من تعطيل وحذف كود الخصم؟')) return;
+    try {
+      await api.deletePromoCode(id);
+      fetchData();
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل الحذف: ' + err.message);
+    }
+  };
+
+  const handleCreateArticle = async (articleData) => {
+    try {
+      await api.createArticle(articleData);
+      alert('تم نشر المقال والنصيحة الطبية بنجاح!');
+      fetchData();
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل نشر المقال: ' + err.message);
+    }
+  };
+
+  const handleDeleteArticle = async (id) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا المقال؟')) return;
+    try {
+      await api.deleteArticle(id);
+      fetchData();
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل الحذف: ' + err.message);
+    }
+  };
+
+  const handleCreateCategory = async (catData) => {
+    try {
+      await api.createCMSCategory(catData);
+      alert('تمت إضافة القسم بنجاح!');
+      fetchData();
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل إضافة القسم: ' + err.message);
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذه الفئة؟')) return;
+    try {
+      await api.deleteCMSCategory(id);
+      fetchData();
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل الحذف: ' + err.message);
+    }
+  };
+
+  const handleCreateMediaAsset = async (mediaData) => {
+    try {
+      const updatedMedia = [
+        ...(settingsForm.mediaLibrary || []),
+        {
+          id: `med_${Date.now()}`,
+          name: mediaData.name,
+          url: mediaData.url,
+          alt: mediaData.alt || mediaData.name,
+          category: mediaData.category || 'أدوية',
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      await api.updatePlatformSettings({ mediaLibrary: updatedMedia });
+      setSettingsForm((prev) => ({ ...prev, mediaLibrary: updatedMedia }));
+      alert('تمت إضافة الصورة إلى مكتبة الوسائط بنجاح!');
+      fetchData();
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل إضافة الصورة: ' + err.message);
+    }
+  };
+
+  const handleDeleteMediaAsset = async (id) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذه الصورة من المكتبة؟')) return;
+    try {
+      const updatedMedia = (settingsForm.mediaLibrary || []).filter((m) => m.id !== id);
+      await api.updatePlatformSettings({ mediaLibrary: updatedMedia });
+      setSettingsForm((prev) => ({ ...prev, mediaLibrary: updatedMedia }));
+      fetchData();
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل الحذف: ' + err.message);
+    }
+  };
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    try {
+      await api.updatePlatformSettings(settingsForm);
+      alert('تم حفظ إعدادات المنصة والهوية البصرية بنجاح!');
+      fetchData(true);
+      if (typeof refreshCmsData === 'function') refreshCmsData();
+    } catch (err) {
+      alert('فشل حفظ الإعدادات: ' + err.message);
+    }
+  };
+
+  const couriers = Array.isArray(staffList) ? staffList.filter((s) => s.role === 'DELIVERY') : [];
+  const pendingOrdersCount = orders.filter((o) => o.status === 'PENDING').length;
+  const pendingRxCount = prescriptions.filter((p) => p.status === 'PENDING').length;
+
+  // Unauthenticated / Non-Staff Gateway
+  if (!user || !['ADMIN', 'PHARMACIST', 'DELIVERY', 'SUPPORT'].includes(user?.role)) {
+    return <AuthRoleGateway setActiveTab={setActiveTab} onBackToStore={onBackToStore} />;
+  }
+
+  return (
+    <AdminLayout
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      cmsActiveSubTab={cmsActiveSubTab}
+      setCmsActiveSubTab={setCmsActiveSubTab}
+      onRefresh={() => fetchData(true)}
+      loading={loading}
+      onBackToStore={onBackToStore}
+      pendingOrdersCount={pendingOrdersCount}
+      pendingRxCount={pendingRxCount}
+    >
+      {/* 1. Orders Tab */}
+      {activeTab === 'orders' && (
+        <OrdersTab
+          orders={orders}
+          orderFilter={orderFilter}
+          setOrderFilter={setOrderFilter}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSelectOrder={(ord) => setSelectedOrderForDetail(ord)}
+          onUpdateStatus={handleUpdateOrderStatus}
+          couriers={couriers}
+        />
+      )}
+
+      {/* 2. Prescriptions Tab */}
+      {activeTab === 'prescriptions' && (
+        <PrescriptionsTab
+          prescriptions={prescriptions}
+          onSelectRxForReview={(rx) => setSelectedRxForReview(rx)}
+        />
+      )}
+
+      {/* 3. Products & Inventory Tab */}
+      {activeTab === 'products' && (
+        <ProductsTab
+          products={productsList}
+          onOpenNewProductModal={() => setIsNewProductModalOpen(true)}
+          onOpenExcelImportModal={() => setIsExcelImportModalOpen(true)}
+          onRefresh={() => fetchData(true)}
+        />
+      )}
+
+      {/* 4. Staff Accounts Tab */}
+      {activeTab === 'staff' && (
+        <StaffTab
+          staffList={staffList}
+          onOpenNewStaffModal={() => setIsNewStaffModalOpen(true)}
+          onDeleteStaff={handleDeleteStaff}
+        />
+      )}
+
+      {/* 5. Refills Tab */}
+      {activeTab === 'refills' && (
+        <RefillsTab refills={refillsList} />
+      )}
+
+      {/* 6. Customers Directory Tab */}
+      {activeTab === 'customers' && (
+        <CustomersTab customers={customersList} />
+      )}
+
+      {/* 7. Analytics & Revenue Tab */}
+      {activeTab === 'analytics' && (
+        <AnalyticsTab
+          stats={stats}
+          orders={orders}
+          prescriptions={prescriptions}
+        />
+      )}
+
+      {/* 8. Courier View Tab */}
+      {activeTab === 'courier' && (
+        <CourierView
+          orders={orders}
+          courierStats={courierStats}
+          onUpdateStatus={handleUpdateOrderStatus}
+          onRefresh={fetchData}
+          loading={loading}
+        />
+      )}
+
+      {/* 9. CMS Hub Tab */}
+      {activeTab === 'cms' && (
+        <CmsTab
+          cmsActiveSubTab={cmsActiveSubTab}
+          setCmsActiveSubTab={setCmsActiveSubTab}
+          settingsForm={settingsForm}
+          setSettingsForm={setSettingsForm}
+          onSaveSettings={handleSaveSettings}
+          cmsBanners={cmsBanners}
+          cmsCategories={cmsCategories}
+          cmsPromoCodes={cmsPromoCodes}
+          cmsArticles={cmsArticles}
+          onOpenNewBannerModal={() => setIsNewBannerModalOpen(true)}
+          onDeleteBanner={handleDeleteBanner}
+          onOpenNewCategoryModal={() => setIsNewCategoryModalOpen(true)}
+          onDeleteCategory={handleDeleteCategory}
+          onOpenNewCouponModal={() => setIsNewCouponModalOpen(true)}
+          onDeleteCoupon={handleDeleteCoupon}
+          onOpenNewArticleModal={() => setIsNewArticleModalOpen(true)}
+          onDeleteArticle={handleDeleteArticle}
+          onOpenNewMediaModal={() => setIsNewMediaModalOpen(true)}
+          onDeleteMedia={handleDeleteMediaAsset}
+        />
+      )}
+
+      {/* Global Admin Modals */}
+      {selectedOrderForDetail && (
+        <OrderDetailModal
+          order={selectedOrderForDetail}
+          onClose={() => setSelectedOrderForDetail(null)}
+          onUpdateStatus={handleUpdateOrderStatus}
+          couriers={couriers}
+        />
+      )}
+
+      {selectedRxForReview && (
+        <PrescriptionReviewModal
+          rx={selectedRxForReview}
+          onClose={() => setSelectedRxForReview(null)}
+          onSubmitQuote={handleSubmitQuote}
+        />
+      )}
+
+      <NewStaffModal
+        isOpen={isNewStaffModalOpen}
+        onClose={() => setIsNewStaffModalOpen(false)}
+        onSubmit={handleCreateStaff}
+      />
+
+      <NewProductModal
+        isOpen={isNewProductModalOpen}
+        onClose={() => setIsNewProductModalOpen(false)}
+        onSubmit={handleCreateProduct}
+      />
+
+      <NewBannerModal
+        isOpen={isNewBannerModalOpen}
+        onClose={() => setIsNewBannerModalOpen(false)}
+        onSubmit={handleCreateBanner}
+      />
+
+      <NewCouponModal
+        isOpen={isNewCouponModalOpen}
+        onClose={() => setIsNewCouponModalOpen(false)}
+        onSubmit={handleCreateCoupon}
+      />
+
+      <NewArticleModal
+        isOpen={isNewArticleModalOpen}
+        onClose={() => setIsNewArticleModalOpen(false)}
+        onSubmit={handleCreateArticle}
+      />
+
+      <NewCategoryModal
+        isOpen={isNewCategoryModalOpen}
+        onClose={() => setIsNewCategoryModalOpen(false)}
+        onSubmit={handleCreateCategory}
+      />
+
+      <NewMediaModal
+        isOpen={isNewMediaModalOpen}
+        onClose={() => setIsNewMediaModalOpen(false)}
+        onSubmit={handleCreateMediaAsset}
+      />
+      {/* Excel Import Modal */}
+      <ExcelImportModal
+        isOpen={isExcelImportModalOpen}
+        onClose={() => setIsExcelImportModalOpen(false)}
+        onImportSuccess={fetchData}
+      />
+    </AdminLayout>
+  );
+};

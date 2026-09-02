@@ -1,0 +1,160 @@
+import React, { useState, useEffect } from 'react';
+import { CmsProvider } from './context/CmsContext';
+import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
+import { LocationProvider } from './context/LocationContext';
+import { Navbar } from './components/layout/Navbar';
+import { SubHeader } from './components/layout/SubHeader';
+import { Footer } from './components/layout/Footer';
+import { Home } from './pages/Home';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { LocationPickerModal } from './components/location/LocationPickerModal';
+import { AuthModal } from './components/auth/AuthModal';
+import { UploadModal } from './components/prescription/UploadModal';
+import { SearchModal } from './components/search/SearchModal';
+import { RefillModal } from './components/refill/RefillModal';
+import { CartDrawer } from './components/cart/CartDrawer';
+import { CheckoutModal } from './components/checkout/CheckoutModal';
+import { ProductDetailModal } from './components/products/ProductDetailModal';
+import { PharmacistBot } from './components/chat/PharmacistBot';
+
+export function AppContent() {
+  const [currentView, setCurrentView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('view') === 'admin' || window.location.hash === '#admin') {
+        return 'admin';
+      }
+    }
+    return 'store';
+  });
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('app_dark') === 'true' || localStorage.getItem('chefaa_dark') === 'true';
+  });
+
+  const [selectedCategory, setSelectedCategory] = useState('الكل');
+
+  // Modals state
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isRefillOpen, setIsRefillOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [quickViewProduct, setQuickViewProduct] = useState(null);
+
+  useEffect(() => {
+    const handleHash = () => {
+      if (window.location.hash === '#admin') {
+        setCurrentView('admin');
+      } else if (window.location.hash === '#store') {
+        setCurrentView('store');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('app_dark', 'true');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('app_dark', 'false');
+    }
+  }, [darkMode]);
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200 selection:bg-emerald-500 selection:text-white">
+      {currentView === 'admin' ? (
+        <AdminDashboard onBackToStore={() => setCurrentView('store')} />
+      ) : (
+        <>
+          {/* Top Navigation */}
+          <Navbar
+            onOpenUpload={() => setIsUploadOpen(true)}
+            onOpenSearch={() => setIsSearchOpen(true)}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onOpenRefill={() => setIsRefillOpen(true)}
+            currentView={currentView}
+            setCurrentView={setCurrentView}
+            darkMode={darkMode}
+            setDarkMode={setDarkMode}
+          />
+
+          {/* Sub Header / Category Bar */}
+          <SubHeader
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+            onOpenRefill={() => setIsRefillOpen(true)}
+          />
+
+          {/* Main Storefront */}
+          <main className="flex-1">
+            <Home
+              onOpenUpload={() => setIsUploadOpen(true)}
+              onOpenRefill={() => setIsRefillOpen(true)}
+              onOpenSearch={() => setIsSearchOpen(true)}
+              onQuickView={(prod) => setQuickViewProduct(prod)}
+              selectedCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+            />
+          </main>
+
+          {/* Footer */}
+          <Footer />
+
+          {/* Floating AI Pharmacist Assistant */}
+          <PharmacistBot />
+        </>
+      )}
+
+      {/* Global Modals */}
+      <LocationPickerModal />
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      <UploadModal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} />
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSelectProduct={(prod) => setQuickViewProduct(prod)}
+      />
+      <RefillModal isOpen={isRefillOpen} onClose={() => setIsRefillOpen(false)} />
+      <CartDrawer onOpenCheckout={() => setIsCheckoutOpen(true)} />
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+      />
+      <ProductDetailModal
+        product={quickViewProduct}
+        onClose={() => setQuickViewProduct(null)}
+        onSelectAlternative={(alt) => setQuickViewProduct(alt)}
+      />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <CmsProvider>
+      <AuthProvider>
+        <LocationProvider>
+          <CartProvider>
+            <AppContent />
+          </CartProvider>
+        </LocationProvider>
+      </AuthProvider>
+    </CmsProvider>
+  );
+}
