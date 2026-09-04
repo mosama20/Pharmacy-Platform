@@ -107,25 +107,25 @@ export const PharmacistBot = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 left-6 z-40 p-4 rounded-full bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 border-2 border-white/20 group"
+          className="fixed bottom-20 left-4 md:bottom-6 md:left-6 z-40 p-3 sm:p-4 rounded-full bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 sm:gap-3 border-2 border-white/20 group"
           title={`تحدث مع الصيدلي الذكي - ${storeName}`}
         >
           <div className="relative">
-            <Bot className="w-6 h-6 animate-pulse" />
+            <Bot className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-white" />
           </div>
-          <span className="font-bold text-sm hidden sm:inline-block">
+          <span className="font-bold text-xs sm:text-sm hidden xs:inline-block">
             الصيدلي الذكي
           </span>
-          <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">
-            AI 24/7
+          <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-white/20 text-[9px] sm:text-[10px] font-bold">
+            AI
           </span>
         </button>
       )}
 
-      {/* Chat Window Modal */}
+      {/* Chat Window Modal (Bottom Sheet on Mobile, Floating on Desktop) */}
       {isOpen && (
-        <div className="fixed bottom-6 left-6 z-50 w-full max-w-sm sm:max-w-md h-[550px] max-h-[85vh] rounded-3xl glass-card shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
+        <div className="fixed inset-x-0 bottom-0 top-12 sm:inset-auto sm:bottom-6 sm:left-6 sm:w-96 sm:h-[550px] sm:max-h-[85vh] z-50 rounded-t-3xl sm:rounded-3xl glass-card shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
           {/* Header */}
           <div className="p-4 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between shadow-md">
             <div className="flex items-center gap-3">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   MapPin,
@@ -12,6 +12,9 @@ import {
   ShieldCheck,
   ShoppingBag,
   Zap,
+  Loader2,
+  ChevronLeft,
+  Info,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -27,11 +30,11 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
   const [customerName, setCustomerName] = useState(user?.name || '');
   const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
-  const [street, setStreet] = useState(user?.address || 'شارع النصر، عمارة 14');
-  const [building, setBuilding] = useState('عمارة 14');
-  const [floor, setFloor] = useState('الدور 3');
-  const [apartment, setApartment] = useState('شقة 301');
-  const [landmark, setLandmark] = useState('بجوار صيدلية العزبي وميدان فيكتوريا');
+  const [street, setStreet] = useState(user?.address || '');
+  const [building, setBuilding] = useState('');
+  const [floor, setFloor] = useState('');
+  const [apartment, setApartment] = useState('');
+  const [landmark, setLandmark] = useState('');
   const [deliveryType, setDeliveryType] = useState('EXPRESS_45M');
   const [paymentMethod, setPaymentMethod] = useState('CASH_ON_DELIVERY');
   const [notes, setNotes] = useState('');
@@ -39,38 +42,60 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
   const [error, setError] = useState('');
   const [successOrder, setSuccessOrder] = useState(null);
 
+  useEffect(() => {
+    if (user) {
+      if (!customerName && user.name) setCustomerName(user.name);
+      if (!customerPhone && user.phone) setCustomerPhone(user.phone);
+      if (!street && user.address) setStreet(user.address);
+    }
+  }, [user, isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!customerName || !customerPhone || !street) {
-      setError('يرجى استكمال بيانات الاسم ورقم الهاتف والعنوان');
+    setError('');
+
+    if (!customerName.trim()) {
+      setError('يرجى إدخال اسم المستلم بالكامل');
+      return;
+    }
+    if (!customerPhone.trim() || customerPhone.trim().length < 10) {
+      setError('يرجى إدخال رقم هاتف صحيح للتواصل وتأكيد التسليم');
+      return;
+    }
+    if (!street.trim()) {
+      setError('يرجى كتابة اسم الشارع والمنطقة');
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      setError('سلة المشتريات فارغة، يرجى إضافة منتجات أولاً');
       return;
     }
 
     setLoading(true);
-    setError('');
 
     try {
       const orderPayload = {
         customerId: user?.id || 'guest_user',
-        customerName,
-        customerPhone,
-        customerEmail,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        customerEmail: customerEmail.trim() || undefined,
         deliveryAddress: {
           governorate: selectedGovernorate,
           city: selectedDistrict,
-          street,
-          building,
-          floor,
-          apartment,
-          landmark,
+          street: street.trim(),
+          building: building.trim(),
+          floor: floor.trim(),
+          apartment: apartment.trim(),
+          landmark: landmark.trim(),
         },
         deliveryType,
         paymentMethod,
         items: cartItems,
         promoCode: appliedPromo || undefined,
-        notes,
+        notes: notes.trim(),
       };
 
       const res = await api.createOrder(orderPayload);
@@ -85,64 +110,72 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
 
   const handleClose = () => {
     setSuccessOrder(null);
+    setError('');
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl rounded-3xl glass-card shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-2xl rounded-3xl glass-card shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[94vh] flex flex-col bg-white dark:bg-slate-900">
         {/* Header */}
-        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-emerald-600 to-teal-700 text-white">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-emerald-600 to-teal-700 text-white shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center shadow-inner">
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base">إتمام وتأكيد الطلب</h3>
-              <p className="text-xs text-emerald-100">
+              <h3 className="font-black text-sm sm:text-base font-tajawal">
+                إتمام وتأكيد الطلب
+              </h3>
+              <p className="text-[11px] text-emerald-100">
                 توصيل آمن وسريع من أقرب صيدلية في {selectedDistrict}
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 cursor-pointer"
+            className="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-5 flex-1">
-          {successOrder ? (
-            <div className="py-8 text-center space-y-4 animate-in fade-in duration-300">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center mx-auto animate-bounce">
-                <CheckCircle2 className="w-10 h-10" />
-              </div>
-              <h4 className="text-xl font-black text-slate-900 dark:text-white">
-                تم استلام طلبك وتأكيده بنجاح!
-              </h4>
-              <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto leading-relaxed">
-                رقم الطلب:{' '}
-                <strong className="font-mono text-emerald-600 text-sm">
-                  {successOrder.orderNumber || successOrder.id}
-                </strong>
-                <br />
-                الإجمالي المطلوب: <strong className="font-mono text-slate-900 dark:text-white">{successOrder.total || total} ج.م</strong>
-                <br />
-                يقوم الصيدلي بتجهيز الطلب الآن وسيتم التواصل معك هاتفياً على ({customerPhone}) للتسليم.
-              </p>
-              <button
-                onClick={handleClose}
-                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
-              >
-                العودة للتسوق
-              </button>
+        {successOrder ? (
+          <div className="p-6 sm:p-8 overflow-y-auto text-center space-y-4 animate-in fade-in duration-300 flex-1 flex flex-col items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center mx-auto animate-bounce">
+              <CheckCircle2 className="w-10 h-10" />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <h4 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-tajawal">
+              تم تأكيد واستلام طلبك بنجاح!
+            </h4>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto leading-relaxed">
+              رقم الطلب:{' '}
+              <strong className="font-mono text-emerald-600 text-base">
+                {successOrder.orderNumber || successOrder.id}
+              </strong>
+              <br />
+              المبلغ الإجمالي عند التسليم:{' '}
+              <strong className="font-mono text-slate-900 dark:text-white text-base">
+                {successOrder.total || total} ج.م
+              </strong>
+              <br />
+              يقوم الصيدلي المناوب بتجهيز الأدوية الآن، وسيتم التواصل معك هاتفياً على (
+              {customerPhone}) لتسليم الطلب خلال 30-45 دقيقة.
+            </p>
+            <button
+              onClick={handleClose}
+              className="px-8 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md transition-colors cursor-pointer"
+            >
+              العودة للتسوق
+            </button>
+          </div>
+        ) : (
+          <form id="checkout-form" onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+            {/* Scrollable Form Body */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
               {error && (
-                <div className="p-3 rounded-xl bg-red-50 text-red-600 text-xs font-semibold flex items-center gap-2">
+                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2 border border-rose-200 dark:border-rose-800 animate-shake">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -150,11 +183,11 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
 
               {/* 1. Customer Personal Info */}
               <div className="space-y-3">
-                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                   <span>1. بيانات المستلم والتواصل</span>
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                       الاسم بالكامل *
@@ -162,36 +195,36 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
                     <input
                       type="text"
                       required
-                      placeholder="محمد أحمد"
+                      placeholder="اسم المستلم ثلاثي أو ثنائي"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs focus:outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      رقم الهاتف للتواصل *
+                      رقم الهاتف للتواصل وتأكيد التسليم *
                     </label>
                     <input
                       type="tel"
                       required
-                      placeholder="01012345678"
+                      placeholder="مثال: 01012345678"
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs font-mono focus:outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900"
                     />
                   </div>
                 </div>
               </div>
 
               {/* 2. Detailed Delivery Address */}
-              <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                     <span>2. عنوان التوصيل بالتفصيل</span>
                   </h4>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950 px-2.5 py-0.5 rounded-md">
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950 px-2.5 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800">
                     {selectedGovernorate} - {selectedDistrict}
                   </span>
                 </div>
@@ -199,7 +232,7 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      اسم الشارع والمنطقة *
+                      اسم الشارع والحي *
                     </label>
                     <input
                       type="text"
@@ -207,21 +240,21 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
                       placeholder="مثال: شارع النصر، متفرع من شارع اللاسلكي"
                       value={street}
                       onChange={(e) => setStreet(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs focus:outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900"
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
                         رقم العمارة
                       </label>
                       <input
                         type="text"
-                        placeholder="عمارة 14"
+                        placeholder="مثال: 14"
                         value={building}
                         onChange={(e) => setBuilding(e.target.value)}
-                        className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-center"
+                        className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs text-center focus:bg-white dark:focus:bg-slate-900"
                       />
                     </div>
                     <div>
@@ -230,10 +263,10 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
                       </label>
                       <input
                         type="text"
-                        placeholder="الدور 3"
+                        placeholder="مثال: 3"
                         value={floor}
                         onChange={(e) => setFloor(e.target.value)}
-                        className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-center"
+                        className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs text-center focus:bg-white dark:focus:bg-slate-900"
                       />
                     </div>
                     <div>
@@ -242,10 +275,10 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
                       </label>
                       <input
                         type="text"
-                        placeholder="شقة 301"
+                        placeholder="مثال: 301"
                         value={apartment}
                         onChange={(e) => setApartment(e.target.value)}
-                        className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-center"
+                        className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs text-center focus:bg-white dark:focus:bg-slate-900"
                       />
                     </div>
                   </div>
@@ -256,50 +289,52 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
                     </label>
                     <input
                       type="text"
-                      placeholder="مثال: بجوار مسجد النور، أو أمام بنك مصر"
+                      placeholder="مثال: بجوار مسجد النور، أمام بنك مصر"
                       value={landmark}
                       onChange={(e) => setLandmark(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs focus:outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900"
                     />
                   </div>
                 </div>
               </div>
 
               {/* 3. Delivery Speed Choice */}
-              <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                   <span>3. سرعة وموعد التوصيل</span>
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div
                     onClick={() => setDeliveryType('EXPRESS_45M')}
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
+                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-3 active:scale-98 ${
                       deliveryType === 'EXPRESS_45M'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30'
+                        ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-xs'
                         : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
-                      <Zap className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                      <Zap className="w-5 h-5 fill-amber-500" />
                     </div>
                     <div>
                       <h5 className="font-bold text-xs text-slate-900 dark:text-white">
                         توصيل فوري (30 - 45 دقيقة)
                       </h5>
-                      <p className="text-[10px] text-slate-500">من أقرب صيدلية متوفرة</p>
+                      <p className="text-[10px] text-slate-500">
+                        خارج من أقرب صيدلية مرخصة بجوارك
+                      </p>
                     </div>
                   </div>
 
                   <div
                     onClick={() => setDeliveryType('SCHEDULED')}
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
+                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-3 active:scale-98 ${
                       deliveryType === 'SCHEDULED'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30'
+                        ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-xs'
                         : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center shrink-0">
                       <Clock className="w-5 h-5" />
                     </div>
                     <div>
@@ -313,85 +348,116 @@ export const CheckoutModal = ({ isOpen, onClose }) => {
               </div>
 
               {/* 4. Payment Method */}
-              <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                   <span>4. طريقة الدفع</span>
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div
                     onClick={() => setPaymentMethod('CASH_ON_DELIVERY')}
-                    className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-2.5 ${
+                    className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-2 active:scale-98 ${
                       paymentMethod === 'CASH_ON_DELIVERY'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 font-bold text-emerald-700 dark:text-emerald-300'
-                        : 'border-slate-200 dark:border-slate-800'
+                        ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 font-bold text-emerald-800 dark:text-emerald-300'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
                     }`}
                   >
-                    <Banknote className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span className="text-xs">دفع عند الاستلام (كاش)</span>
                   </div>
 
                   <div
                     onClick={() => setPaymentMethod('WALLET')}
-                    className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-2.5 ${
+                    className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-2 active:scale-98 ${
                       paymentMethod === 'WALLET'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 font-bold text-emerald-700 dark:text-emerald-300'
-                        : 'border-slate-200 dark:border-slate-800'
+                        ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 font-bold text-emerald-800 dark:text-emerald-300'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
                     }`}
                   >
-                    <Smartphone className="w-5 h-5 text-purple-600 shrink-0" />
-                    <span className="text-xs">محفظة إلكترونية / إنستاباي</span>
+                    <Smartphone className="w-4 h-4 text-purple-600 shrink-0" />
+                    <span className="text-xs">إنستاباي / محفظة ذكية</span>
                   </div>
 
                   <div
                     onClick={() => setPaymentMethod('CARD')}
-                    className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-2.5 ${
+                    className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-2 active:scale-98 ${
                       paymentMethod === 'CARD'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 font-bold text-emerald-700 dark:text-emerald-300'
-                        : 'border-slate-200 dark:border-slate-800'
+                        ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 font-bold text-emerald-800 dark:text-emerald-300'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
                     }`}
                   >
-                    <CreditCard className="w-5 h-5 text-blue-600 shrink-0" />
-                    <span className="text-xs">فيزا / ماستركارد</span>
+                    <CreditCard className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span className="text-xs">بطاقة بنكية / فيزا</span>
                   </div>
                 </div>
               </div>
 
-              {/* Order Summary & Submit */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
-                <div className="flex justify-between text-xs text-slate-500">
-                  <span>إجمالي المنتجات ({cartItems.length} عناصر):</span>
-                  <span className="font-mono">{subtotal} ج.م</span>
+              {/* 5. Order Items Summary Checklist */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <span>عناصر الطلب ({cartItems.length}):</span>
+                  <span className="font-mono text-emerald-600">{subtotal} ج.م</span>
                 </div>
-                <div className="flex justify-between text-xs text-slate-500">
-                  <span>رسوم التوصيل:</span>
-                  <span className="font-mono">
-                    {deliveryFee === 0 ? 'مجاني' : `${deliveryFee} ج.م`}
+                <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1">
+                  {cartItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between text-[11px] text-slate-500 py-0.5"
+                    >
+                      <span className="truncate max-w-[200px] sm:max-w-[300px]">
+                        {item.nameAr} × {item.quantity}
+                      </span>
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                        {item.price * item.quantity} ج.م
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* STICKY BOTTOM BAR (Always visible!) */}
+            <div className="p-3.5 sm:p-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 shrink-0 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 shadow-xl">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-500">إجمالي المطلوب:</span>
+                  <span className="font-black text-xl sm:text-2xl text-emerald-600 dark:text-emerald-400 font-mono">
+                    {total}
                   </span>
+                  <span className="text-xs font-bold text-slate-500">ج.م</span>
                 </div>
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-xs text-emerald-600 font-bold">
-                    <span>الخصم المطبق ({appliedPromo}):</span>
-                    <span className="font-mono">-{discountAmount} ج.م</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm font-black text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span>المبلغ الإجمالي للدفع:</span>
-                  <span className="font-mono text-emerald-600 text-base">{total} ج.م</span>
+                <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                  <span>التوصيل: {deliveryFee === 0 ? 'مجاني ✓' : `${deliveryFee} ج.م`}</span>
+                  {discountAmount > 0 && (
+                    <span className="text-emerald-600 font-bold font-mono">
+                      (وفرت {discountAmount} ج.م)
+                    </span>
+                  )}
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loading || cartItems.length === 0}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-sm shadow-xl shadow-emerald-600/30 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs sm:text-sm shadow-xl shadow-emerald-600/30 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95"
               >
-                {loading ? 'جاري تأكيد الطلب...' : `تأكيد الطلب الآن (${total} ج.م)`}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>جاري تأكيد الطلب...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>تأكيد الطلب الآن ({total} ج.م)</span>
+                  </>
+                )}
               </button>
-            </form>
-          )}
-        </div>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
 };
+

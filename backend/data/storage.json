@@ -290129,6 +290129,67 @@
   ],
   "orders": [
     {
+      "id": "ord_1788504775094",
+      "orderNumber": "CHF-2026-7440",
+      "customerId": "guest_user",
+      "customerName": "ابراهبم ",
+      "customerPhone": "0111111111",
+      "customerEmail": "",
+      "deliveryAddress": {
+        "governorate": "القاهرة",
+        "city": "المعادي",
+        "street": "شارع النصر، عمارة 14",
+        "building": "عمارة 14",
+        "floor": "الدور 3",
+        "apartment": "شقة 301",
+        "landmark": "بجوار صيدلية العزبي وميدان فيكتوريا"
+      },
+      "deliveryType": "SCHEDULED",
+      "paymentMethod": "CARD",
+      "paymentStatus": "PAID",
+      "items": [
+        {
+          "productId": "prod_panadol-extra-tab",
+          "nameAr": "بانادول اكسترا اوبتيزورب لتخفيف إضافي مسكن فعال للألم والحمي | 24 قرص",
+          "nameEn": "بانادول اكسترا اوبتيزورب لتخفيف إضافي مسكن فعال للألم والحمي | 24 قرص - بانادول",
+          "price": 58,
+          "originalPrice": 64,
+          "image": "https://cdn.jsdelivr.net/gh/mosama20/chefaa-images@main/images/panadol-extra-tab.png",
+          "isPrescriptionRequired": true,
+          "quantity": 1
+        },
+        {
+          "productId": "prod_TABLETS",
+          "nameAr": "اقراص دوليبران 1000 باراسيتامول doliprane | ١٥ قرص",
+          "nameEn": "اقراص دوليبران 1000 باراسيتامول doliprane | ١٥ قرص - دوليبران",
+          "price": 48,
+          "originalPrice": 53,
+          "image": "https://cdn.jsdelivr.net/gh/mosama20/chefaa-images@main/images/TABLETS.png",
+          "isPrescriptionRequired": true,
+          "quantity": 2
+        }
+      ],
+      "subtotal": 154,
+      "deliveryFee": 25,
+      "discount": 0,
+      "total": 179,
+      "notes": "",
+      "status": "PENDING",
+      "statusTimeline": [
+        {
+          "status": "PENDING",
+          "titleAr": "تم استلام الطلب وتأكيده بنجاح",
+          "timestamp": "2026-09-04T06:52:55.094Z",
+          "note": "في انتظار مراجعة الصيدلي وتجهيز الأدوية"
+        }
+      ],
+      "createdAt": "2026-09-04T06:52:55.095Z",
+      "updatedAt": "2026-09-04T06:52:55.095Z",
+      "assignedCourierId": "usr_cour_1",
+      "assignedCourierName": "كابتن أحمد علي (مندوب توصيل سريع)",
+      "courierPhone": "01234567890"
+    },
+    {
       "id": "ord_1001",
       "orderNumber": "ORD-2026-9812",
       "customerId": "usr_cust_1",
@@ -290750,5 +290811,5 @@
       }
     ]
   },
-  "lastSavedAt": "2026-09-02T23:30:36.259Z"
+  "lastSavedAt": "2026-09-04T06:52:55.313Z"
 }

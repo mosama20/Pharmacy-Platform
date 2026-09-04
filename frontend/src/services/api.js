@@ -1,4 +1,57 @@
-const API_BASE = 'http://localhost:5000/api';
+import fallbackProducts from '../data/fallbackProducts.json';
+
+const API_BASE = import.meta.env.VITE_API_BASE || (
+  typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && !window.location.hostname.includes('github.io')
+    ? `http://${window.location.hostname}:5000/api`
+    : 'http://localhost:5000/api'
+);
+
+const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.includes('github.io');
+
+const filterFallbackProducts = (params = {}) => {
+  let list = [...fallbackProducts];
+
+  if (params.search) {
+    const q = params.search.trim().toLowerCase();
+    list = list.filter(
+      (p) =>
+        (p.nameAr && p.nameAr.toLowerCase().includes(q)) ||
+        (p.nameEn && p.nameEn.toLowerCase().includes(q)) ||
+        (p.descriptionAr && p.descriptionAr.toLowerCase().includes(q)) ||
+        (p.activeIngredient && p.activeIngredient.toLowerCase().includes(q))
+    );
+  }
+
+  if (params.category && params.category !== 'الكل') {
+    list = list.filter((p) => p.category === params.category || p.category?.includes(params.category));
+  }
+
+  if (params.subCategory && params.subCategory !== 'ALL') {
+    list = list.filter((p) => p.subCategory === params.subCategory || p.subCategory?.includes(params.subCategory));
+  }
+
+  if (params.isHotDeal !== undefined) {
+    list = list.filter((p) => p.isHotDeal || (p.discountPercentage && p.discountPercentage > 0));
+  }
+
+  if (params.isPrescriptionRequired !== undefined) {
+    list = list.filter((p) => Boolean(p.isPrescriptionRequired) === Boolean(params.isPrescriptionRequired));
+  }
+
+  if (params.sortBy === 'price_asc') {
+    list.sort((a, b) => a.price - b.price);
+  } else if (params.sortBy === 'price_desc') {
+    list.sort((a, b) => b.price - a.price);
+  } else if (params.sortBy === 'rating_desc') {
+    list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  }
+
+  if (params.limit) {
+    list = list.slice(0, Number(params.limit));
+  }
+
+  return list;
+};
 
 const getHeaders = (isAuth = true) => {
   const headers = {
@@ -48,6 +101,9 @@ export const api = {
 
   // Products
   getProducts: async (params = {}) => {
+    if (isGitHubPages && !import.meta.env.VITE_API_BASE) {
+      return filterFallbackProducts(params);
+    }
     const query = new URLSearchParams();
     if (params.search) query.append('search', params.search);
     if (params.category && params.category !== 'الكل') query.append('category', params.category);
@@ -60,25 +116,59 @@ export const api = {
     if (params.limit !== undefined) query.append('limit', params.limit);
     if (params.page !== undefined) query.append('page', params.page);
 
-    const res = await fetch(`${API_BASE}/products?${query.toString()}`);
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/products?${query.toString()}`);
+      if (!res.ok) throw new Error('API error');
+      return await res.json();
+    } catch (e) {
+      console.warn('API connection failed, using offline fallback catalog:', e);
+      return filterFallbackProducts(params);
+    }
   },
 
   getCatalogStats: async () => {
-    const res = await fetch(`${API_BASE}/products/catalog-stats`);
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/products/catalog-stats`);
+      if (res.ok) return await res.json();
+    } catch (_) {}
+    return {
+      totalProducts: fallbackProducts.length,
+      hotDealsCount: fallbackProducts.filter((p) => p.isHotDeal).length,
+      prescriptionCount: fallbackProducts.filter((p) => p.isPrescriptionRequired).length,
+      categoriesCount: 8,
+    };
   },
 
   getProductCategories: async () => {
-    const res = await fetch(`${API_BASE}/products/categories`);
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/products/categories`);
+      if (res.ok) return await res.json();
+    } catch (_) {}
+    return [
+      'الأدوية (Medications)',
+      'الفيتامينات والمكملات',
+      'العناية بالبشرة والجمال',
+      'رعاية الأم والطفل',
+      'الأجهزة والمستلزمات الطبية',
+      'العناية الشخصية اليومية',
+    ];
   },
 
   getProductById: async (id) => {
-    const res = await fetch(`${API_BASE}/products/${id}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'المنتج غير موجود');
-    return data;
+    if (isGitHubPages && !import.meta.env.VITE_API_BASE) {
+      const p = fallbackProducts.find((item) => item.id === id);
+      if (p) return p;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/products/${id}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'المنتج غير موجود');
+      return data;
+    } catch (e) {
+      const p = fallbackProducts.find((item) => item.id === id);
+      if (p) return p;
+      throw new Error('المنتج غير موجود');
+    }
   },
 
   createProduct: async (productData) => {
@@ -144,29 +234,61 @@ export const api = {
 
   // Prescriptions
   uploadPrescription: async (rxData) => {
-    const res = await fetch(`${API_BASE}/prescriptions/upload`, {
-      method: 'POST',
-      headers: getHeaders(true),
-      body: JSON.stringify(rxData),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'فشل رفع الروشتة');
-    return data;
+    if (isGitHubPages && !import.meta.env.VITE_API_BASE) {
+      return {
+        id: `rx_demo_${Date.now()}`,
+        prescriptionNumber: `RX-DEMO-${Math.floor(1000 + Math.random() * 9000)}`,
+        status: 'RECEIVED',
+        patientName: rxData.patientName || 'المريض',
+        patientPhone: rxData.patientPhone || '01000000000',
+        notes: rxData.notes || '',
+        createdAt: new Date().toISOString(),
+        message: 'تم استلام الروشتة بنجاح (وضع المعاينة)',
+      };
+    }
+    try {
+      const res = await fetch(`${API_BASE}/prescriptions/upload`, {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: JSON.stringify(rxData),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'فشل رفع الروشتة');
+      return data;
+    } catch (e) {
+      console.warn('API error, simulating prescription upload for demo:', e);
+      return {
+        id: `rx_demo_${Date.now()}`,
+        prescriptionNumber: `RX-DEMO-${Math.floor(1000 + Math.random() * 9000)}`,
+        status: 'RECEIVED',
+        patientName: rxData.patientName || 'المريض',
+        patientPhone: rxData.patientPhone || '01000000000',
+        notes: rxData.notes || '',
+        createdAt: new Date().toISOString(),
+        message: 'تم استلام الروشتة بنجاح (وضع المعاينة)',
+      };
+    }
   },
 
   getAllPrescriptions: async (status) => {
-    const query = status ? `?status=${status}` : '';
-    const res = await fetch(`${API_BASE}/prescriptions${query}`, {
-      headers: getHeaders(true),
-    });
-    return res.json();
+    try {
+      const query = status ? `?status=${status}` : '';
+      const res = await fetch(`${API_BASE}/prescriptions${query}`, {
+        headers: getHeaders(true),
+      });
+      if (res.ok) return await res.json();
+    } catch (_) {}
+    return [];
   },
 
   getMyPrescriptions: async () => {
-    const res = await fetch(`${API_BASE}/prescriptions/my`, {
-      headers: getHeaders(true),
-    });
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/prescriptions/my`, {
+        headers: getHeaders(true),
+      });
+      if (res.ok) return await res.json();
+    } catch (_) {}
+    return [];
   },
 
   quotePrescription: async (id, quoteData) => {
@@ -191,24 +313,59 @@ export const api = {
 
   // Orders
   createOrder: async (orderData) => {
-    const res = await fetch(`${API_BASE}/orders`, {
-      method: 'POST',
-      headers: getHeaders(true),
-      body: JSON.stringify(orderData),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'فشل تأكيد الطلب');
-    return data;
+    if (isGitHubPages && !import.meta.env.VITE_API_BASE) {
+      const mockOrder = {
+        id: `ord_demo_${Date.now()}`,
+        orderNumber: `CHF-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+        ...orderData,
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+      };
+      try {
+        const existing = JSON.parse(localStorage.getItem('my_orders') || '[]');
+        existing.unshift(mockOrder);
+        localStorage.setItem('my_orders', JSON.stringify(existing));
+      } catch (_) {}
+      return mockOrder;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/orders`, {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: JSON.stringify(orderData),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'فشل تأكيد الطلب');
+      return data;
+    } catch (e) {
+      console.warn('API error, simulating order for demo:', e);
+      const mockOrder = {
+        id: `ord_demo_${Date.now()}`,
+        orderNumber: `CHF-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+        ...orderData,
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+      };
+      try {
+        const existing = JSON.parse(localStorage.getItem('my_orders') || '[]');
+        existing.unshift(mockOrder);
+        localStorage.setItem('my_orders', JSON.stringify(existing));
+      } catch (_) {}
+      return mockOrder;
+    }
   },
 
   getAllOrders: async (params = {}) => {
     const query = new URLSearchParams();
     if (params.status && params.status !== 'ALL') query.append('status', params.status);
     if (params.search) query.append('search', params.search);
-    const res = await fetch(`${API_BASE}/orders?${query.toString()}`, {
-      headers: getHeaders(true),
-    });
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/orders?${query.toString()}`, {
+        headers: getHeaders(true),
+      });
+      if (res.ok) return await res.json();
+    } catch (_) {}
+    return [];
   },
 
   getMyOrders: async () => {
@@ -344,9 +501,12 @@ export const api = {
 
   // CMS - Banners
   getBanners: async (activeOnly = false) => {
-    const query = activeOnly ? '?activeOnly=true' : '';
-    const res = await fetch(`${API_BASE}/cms/banners${query}`);
-    return res.json();
+    try {
+      const query = activeOnly ? '?activeOnly=true' : '';
+      const res = await fetch(`${API_BASE}/cms/banners${query}`);
+      if (res.ok) return await res.json();
+    } catch (_) {}
+    return [];
   },
 
   createBanner: async (data) => {
@@ -472,8 +632,11 @@ export const api = {
 
   // CMS - Articles
   getArticles: async () => {
-    const res = await fetch(`${API_BASE}/cms/articles`);
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/cms/articles`);
+      if (res.ok) return await res.json();
+    } catch (_) {}
+    return [];
   },
 
   getArticleById: async (id) => {

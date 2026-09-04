@@ -17,6 +17,7 @@ import { CartDrawer } from './components/cart/CartDrawer';
 import { CheckoutModal } from './components/checkout/CheckoutModal';
 import { ProductDetailModal } from './components/products/ProductDetailModal';
 import { PharmacistBot } from './components/chat/PharmacistBot';
+import { MobileBottomNav } from './components/layout/MobileBottomNav';
 
 export function AppContent() {
   const [currentView, setCurrentView] = useState(() => {
@@ -118,6 +119,21 @@ export function AppContent() {
 
           {/* Floating AI Pharmacist Assistant */}
           <PharmacistBot />
+
+          {/* Mobile Bottom Navigation Bar */}
+          <MobileBottomNav
+            onOpenUpload={() => setIsUploadOpen(true)}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onOpenCategories={() => {
+              const el = document.getElementById('categories-bar');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            onScrollToTop={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              setSelectedCategory('الكل');
+            }}
+            currentCategory={selectedCategory}
+          />
         </>
       )}
 
@@ -140,6 +156,7 @@ export function AppContent() {
         product={quickViewProduct}
         onClose={() => setQuickViewProduct(null)}
         onSelectAlternative={(alt) => setQuickViewProduct(alt)}
+        onBuyNow={() => setIsCheckoutOpen(true)}
       />
     </div>
   );

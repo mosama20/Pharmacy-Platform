@@ -16,10 +16,10 @@ export const Footer = () => {
   const { settings } = useCms();
 
   return (
-    <footer className="bg-slate-900 text-slate-300 pt-16 pb-12 border-t border-slate-800 mt-20">
+    <footer className="bg-slate-900 text-slate-300 pt-10 sm:pt-16 pb-24 md:pb-12 border-t border-slate-800 mt-10 md:mt-20 overflow-hidden w-full max-w-full">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Value Propositions / Trust badges */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pb-12 border-b border-slate-800">
+        {/* Value Propositions / Trust badges (2x2 on Mobile, 4x1 on Desktop) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 pb-8 sm:pb-12 border-b border-slate-800">
           <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-800/60 border border-slate-700/50">
             <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
               <Truck className="w-6 h-6" />
