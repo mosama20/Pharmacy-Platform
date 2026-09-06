@@ -1,23 +1,34 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { DbService } from '../database/db.service';
+import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly db: DbService) {
+  constructor(private readonly prisma: PrismaService) {
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET must be defined');
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'PHARMACY_PLATFORM_SUPER_SECRET_KEY_2026',
+      secretOrKey: process.env.JWT_SECRET,
     });
   }
 
   async validate(payload: any) {
-    const user = this.db.users.find((u) => u.id === payload.sub);
-    if (!user || user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('المستخدم غير مصرح أو الحساب موقوف');
+    if (!payload?.sub) {
+      throw new UnauthorizedException('رمز المصادقة غير صالح');
     }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
+
+    if (!user || user.status !== 'ACTIVE' || user.deletedAt) {
+      throw new UnauthorizedException('المستخدم غير مصرح أو الحساب موقوف أو محذوف');
+    }
+
     return {
       id: user.id,
       name: user.name,

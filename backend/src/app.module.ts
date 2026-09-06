@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { DbModule } from './database/db.module';
 import { AuthModule } from './auth/auth.module';
@@ -10,9 +12,18 @@ import { OrdersModule } from './orders/orders.module';
 import { RefillModule } from './refill/refill.module';
 import { CmsModule } from './cms/cms.module';
 import { AiModule } from './ai/ai.module';
+import { HealthModule } from './health/health.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60000,
+        limit: 120, // 120 requests per minute general
+      },
+    ]),
     DbModule,
     AuthModule,
     UsersModule,
@@ -23,8 +34,15 @@ import { AiModule } from './ai/ai.module';
     RefillModule,
     CmsModule,
     AiModule,
+    HealthModule,
+    AuditModule,
   ],
   controllers: [AppController],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
-

@@ -13,6 +13,18 @@ import { CmsService } from './cms.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import {
+  CreateBannerDto,
+  UpdateBannerDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  ValidatePromoCodeDto,
+  CreatePromoCodeDto,
+  UpdatePromoCodeDto,
+  CreateArticleDto,
+  UpdateArticleDto,
+  UpdateSettingsDto,
+} from './dto/cms.dto';
 
 @Controller('cms')
 export class CmsController {
@@ -27,14 +39,14 @@ export class CmsController {
   @Post('banners')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'PHARMACIST')
-  createBanner(@Body() body: any) {
+  createBanner(@Body() body: CreateBannerDto) {
     return this.cmsService.createBanner(body);
   }
 
   @Put('banners/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'PHARMACIST')
-  updateBanner(@Param('id') id: string, @Body() body: any) {
+  updateBanner(@Param('id') id: string, @Body() body: UpdateBannerDto) {
     return this.cmsService.updateBanner(id, body);
   }
 
@@ -54,14 +66,14 @@ export class CmsController {
   @Post('categories')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'PHARMACIST')
-  createCategory(@Body() body: any) {
+  createCategory(@Body() body: CreateCategoryDto) {
     return this.cmsService.createCategory(body);
   }
 
   @Put('categories/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'PHARMACIST')
-  updateCategory(@Param('id') id: string, @Body() body: any) {
+  updateCategory(@Param('id') id: string, @Body() body: UpdateCategoryDto) {
     return this.cmsService.updateCategory(id, body);
   }
 
@@ -81,21 +93,24 @@ export class CmsController {
   }
 
   @Post('promo-codes/validate')
-  validatePromoCode(@Body() body: { code: string; cartTotal: number }) {
+  validatePromoCode(@Body() body: ValidatePromoCodeDto) {
     return this.cmsService.validatePromoCode(body.code, body.cartTotal);
   }
 
   @Post('promo-codes')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'PHARMACIST')
-  createPromoCode(@Body() body: any) {
-    return this.cmsService.createPromoCode(body);
+  createPromoCode(@Body() body: CreatePromoCodeDto) {
+    return this.cmsService.createPromoCode({
+      ...body,
+      isActive: body.isActive !== undefined ? body.isActive : true,
+    });
   }
 
   @Put('promo-codes/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'PHARMACIST')
-  updatePromoCode(@Param('id') id: string, @Body() body: any) {
+  updatePromoCode(@Param('id') id: string, @Body() body: UpdatePromoCodeDto) {
     return this.cmsService.updatePromoCode(id, body);
   }
 
@@ -120,14 +135,17 @@ export class CmsController {
   @Post('articles')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'PHARMACIST')
-  createArticle(@Body() body: any) {
-    return this.cmsService.createArticle(body);
+  createArticle(@Body() body: CreateArticleDto) {
+    return this.cmsService.createArticle({
+      ...body,
+      isFeatured: body.isFeatured !== undefined ? body.isFeatured : false,
+    });
   }
 
   @Put('articles/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'PHARMACIST')
-  updateArticle(@Param('id') id: string, @Body() body: any) {
+  updateArticle(@Param('id') id: string, @Body() body: UpdateArticleDto) {
     return this.cmsService.updateArticle(id, body);
   }
 
@@ -146,8 +164,8 @@ export class CmsController {
 
   @Put('settings')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'PHARMACIST')
-  updateSettings(@Body() body: any) {
+  @Roles('ADMIN')
+  updateSettings(@Body() body: UpdateSettingsDto) {
     return this.cmsService.updateSettings(body);
   }
 }

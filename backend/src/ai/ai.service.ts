@@ -181,66 +181,7 @@ export class AiService {
     };
   }
 
-  /**
-   * AI Pharmacist consultation engine
-   */
-  async consultPharmacist(dto: {
-    message: string;
-    cartProductIds?: string[];
-    userCondition?: string;
-  }) {
-    const text = dto.message.toLowerCase().trim();
-    let reply = '';
-    let recommendedProducts: Product[] = [];
-    let interactionAlert: string | null = null;
 
-    // Check interaction if cart has items
-    if (dto.cartProductIds && dto.cartProductIds.length > 1) {
-      const interactions = this.checkDrugInteractions(dto.cartProductIds);
-      if (interactions.length > 0) {
-        interactionAlert = `⚠️ تنبيه صيدلي: تم رصد تداخل دوائي محتمل بين (${interactions[0].pair.join(' و ')}). ${interactions[0].recommendationAr}`;
-      }
-    }
-
-    if (text.includes('بديل') || text.includes('alternative') || text.includes('أرخص')) {
-      const matched = this.db.products.find(
-        (p) => text.includes(p.nameAr.toLowerCase()) || text.includes(p.nameEn.toLowerCase()),
-      );
-      if (matched && matched.alternatives && matched.alternatives.length > 0) {
-        const alts = this.db.products.filter((p) => matched.alternatives?.includes(p.id));
-        reply = `بالتأكيد! دواء **${matched.nameAr}** سعره ${matched.price} ج.م ومادته الفعالة (${matched.activeIngredient}).\n\nتوجد بدائل مصرية متطابقة بنفس المادة الفعالة تماماً وتوفر في التكلفة:`;
-        recommendedProducts = alts;
-      } else {
-        const storeName = this.db.settings?.websiteName || 'الصيدلية';
-        reply = `نعم، نوفر في ${storeName} بدائل متطابقة لجميع الأدوية بنفس الكفاءة والمادة الفعالة مع توفير يصل إلى 40%. يرجى كتابة اسم الدواء الذي تبحث عن بديله أو رفع صورة الروشتة.`;
-      }
-    } else if (text.includes('ضغط') || text.includes('hypertension') || text.includes('كونكور')) {
-      reply = `أدوية ضغط الدم مثل (كونكور / إكسفورج) يفضل أخذها بانتظام صباحاً في نفس الموعد يومياً. تجنب المسكنات اللاستيرويدية (مثل الفولتارين والبروفين) لأنها قد ترفع ضغط الدم وتقلل كفاءة علاج الضغط، واستبدلها بالباراسيتامول الآمن.`;
-      recommendedProducts = this.db.products.filter((p) => p.category === 'أدوية وعلاج').slice(0, 2);
-    } else if (text.includes('سكر') || text.includes('diabetes') || text.includes('جلوكوفاج')) {
-      reply = `أدوية السكر (مثل الميتفورمين وجلوكوفاج) يجب تناولها مع الوجبة الرئيسية أو بعدها مباشرة لتقليل الأعراض الهضمية. يمكنك الاشتراك في خدمة "تكرار الدواء الشهري (Refill)" ليصلك علاج السكر شهرياً بخصم 15% وتوصيل مجاني.`;
-    } else if (text.includes('أوجمنتين') || text.includes('مضاد حيوي') || text.includes('antibiotic')) {
-      reply = `المضاد الحيوي (Augmentin) يجب إكمال الكورس العلاجي بالكامل (من 5 إلى 7 أيام) حتى لو شعرت بالتحسن لمنع مقاومة البكتيريا. يؤخذ قرص كل 12 ساعة في بداية الوجبة لتقليل اضطراب المعدة.\n\nالبديل المصري المطابق هو **هاي بيوتك 1 جم** بنفس الفعالية وبسعر اقتصادي.`;
-      const hibiotic = this.db.products.find((p) => p.nameAr.includes('هاي بيوتك') || p.id === 'prod_11');
-      if (hibiotic) recommendedProducts.push(hibiotic);
-    } else if (text.includes('تفاعل') || text.includes('مع بعض') || text.includes('أخذ')) {
-      reply = `لفحص التداخلات الدوائية بدقة، يرجى ذكر أسماء الأدوية التي تتناولها معاً وسأقوم بفحص المواد الفعالة وإعطائك توجيهات الجرعات والفواصل الزمنية المناسبة فوراً.`;
-    } else {
-      const storeName = this.db.settings?.websiteName || 'الصيدلية الذكية';
-      reply = `أهلاً بك! أنا الصيدلي الذكي 🩺 الخاص بـ ${storeName}. يسعدني الإجابة عن أي استفسار حول:
-1. **البدائل المتطابقة والأرخص** للأدوية المفقودة أو المرتفعة السعر.
-2. **الجرعات الآمنة ومواعيد تناول الدواء** (قبل/بعد الأكل).
-3. **فحص التداخلات الدوائية** وموانع الاستخدام للحوامل والمرضى.
-4. **توصيل الروشتات والتأمين الصحي**.`;
-    }
-
-    return {
-      reply,
-      interactionAlert,
-      recommendedProducts,
-      timestamp: new Date().toISOString(),
-    };
-  }
 
   /**
    * Drug-Drug Interaction Safety Evaluator

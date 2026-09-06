@@ -5,12 +5,16 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable must be defined');
+}
+
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'PHARMACY_PLATFORM_SUPER_SECRET_KEY_2026',
-      signOptions: { expiresIn: '7d' },
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '15m' },
     }),
   ],
   controllers: [AuthController],

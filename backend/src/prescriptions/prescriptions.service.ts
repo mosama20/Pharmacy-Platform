@@ -1,6 +1,25 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { DbService, Prescription } from '../database/db.service';
+import {
+  UploadPrescriptionDto,
+  QuotePrescriptionDto,
+} from './dto/prescriptions.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { validateUploadedImage } from '../common/file-validator.util';
+
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  PENDING: ['UNDER_REVIEW', 'REJECTED'],
+  UNDER_REVIEW: ['QUOTED', 'REJECTED', 'PENDING'],
+  QUOTED: ['ACCEPTED', 'REJECTED'],
+  ACCEPTED: ['ORDER_CREATED', 'REJECTED'],
+  REJECTED: [],
+  ORDER_CREATED: [],
+};
 
 @Injectable()
 export class PrescriptionsService {
@@ -12,7 +31,8 @@ export class PrescriptionsService {
       list = list.filter((p) => p.status === status);
     }
     return list.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   }
 
@@ -25,28 +45,25 @@ export class PrescriptionsService {
       );
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: any) {
     const rx = this.db.prescriptions.find((p) => p.id === id);
     if (!rx) throw new NotFoundException('الروشتة غير موجودة');
+
+    if (user) {
+      const isStaff =
+        user.role === 'ADMIN' ||
+        user.role === 'PHARMACIST' ||
+        user.role === 'SUPPORT';
+      const isOwner = rx.customerId === user.id;
+      if (!isStaff && !isOwner) {
+        throw new ForbiddenException('ليس لديك صلاحية لعرض هذه الروشتة الطبية');
+      }
+    }
+
     return rx;
   }
 
-  async uploadPrescription(dto: {
-    customerId?: string;
-    customerName: string;
-    customerPhone: string;
-    customerAddress?: string;
-    governorate?: string;
-    district?: string;
-    images?: string[];
-    imageUrl?: string;
-    notes?: string;
-    patientNotes?: string;
-    allowAlternatives?: boolean;
-    hasInsurance?: boolean;
-    insuranceCompany?: string;
-    insuranceCardNumber?: string;
-  }) {
+  async uploadPrescription(dto: UploadPrescriptionDto) {
     const rawImages: string[] = [];
     if (Array.isArray(dto.images) && dto.images.length > 0) {
       rawImages.push(...dto.images.filter(Boolean));
@@ -54,19 +71,31 @@ export class PrescriptionsService {
     if (dto.imageUrl && !rawImages.includes(dto.imageUrl)) {
       rawImages.unshift(dto.imageUrl);
     }
+    if (dto.imageBase64 && !rawImages.includes(dto.imageBase64)) {
+      rawImages.unshift(dto.imageBase64);
+    }
 
     if (rawImages.length === 0) {
       throw new BadRequestException('يجب إرفاق صورة واحدة للروشتة على الأقل');
     }
 
+    if (rawImages.length > 5) {
+      throw new BadRequestException('الحد الأقصى للصور في الروشتة الواحدة هو 5 صور');
+    }
+
+    // Validate every attached image (magic bytes, MIME type, max size, SSRF)
+    for (const img of rawImages) {
+      validateUploadedImage(img);
+    }
+
     const primaryImageUrl = rawImages[0];
-    const patientNotes = dto.patientNotes || dto.notes || '';
+    const patientNotes = dto.patientNotes || dto.notes || dto.customerNotes || '';
 
     const newRx: Prescription = {
       id: `rx_${uuidv4().substring(0, 8)}`,
       customerId: dto.customerId || 'guest_user',
-      customerName: dto.customerName,
-      customerPhone: dto.customerPhone,
+      customerName: dto.customerName || 'عميل مجهول',
+      customerPhone: dto.customerPhone || '01000000000',
       customerAddress: dto.customerAddress || 'القاهرة',
       governorate: dto.governorate || 'القاهرة',
       district: dto.district || 'المعادي',
@@ -76,8 +105,8 @@ export class PrescriptionsService {
       patientNotes: patientNotes,
       allowAlternatives: Boolean(dto.allowAlternatives),
       hasInsurance: Boolean(dto.hasInsurance),
-      insuranceCompany: dto.insuranceCompany,
-      insuranceCardNumber: dto.insuranceCardNumber,
+      insuranceCompany: dto.insuranceCompany || dto.insuranceProvider,
+      insuranceCardNumber: dto.insuranceCardNumber || dto.insuranceNumber,
       status: 'PENDING',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -85,6 +114,29 @@ export class PrescriptionsService {
 
     this.db.prescriptions.unshift(newRx);
     this.db.persist();
+
+    // Async sync to PostgreSQL if available
+    this.db.prisma.prescription.create({
+      data: {
+        id: newRx.id,
+        customerId: newRx.customerId,
+        customerName: newRx.customerName,
+        customerPhone: newRx.customerPhone,
+        customerAddress: newRx.customerAddress,
+        governorate: newRx.governorate,
+        district: newRx.district,
+        images: newRx.images,
+        imageUrl: newRx.imageUrl,
+        notes: newRx.notes,
+        patientNotes: newRx.patientNotes,
+        allowAlternatives: newRx.allowAlternatives,
+        hasInsurance: newRx.hasInsurance,
+        insuranceCompany: newRx.insuranceCompany || null,
+        insuranceCardNumber: newRx.insuranceCardNumber || null,
+        status: newRx.status as any,
+      },
+    }).catch((e) => console.warn('Prisma create prescription sync warning:', e.message));
+
     return {
       message: 'تم رفع الروشتة بنجاح وجاري مراجعتها بواسطة الصيدلي المناوب فوراً',
       prescription: newRx,
@@ -94,19 +146,21 @@ export class PrescriptionsService {
   async quotePrescription(
     id: string,
     pharmacistName: string,
-    dto: {
-      pharmacistNotes: string;
-      quotedItems: Array<{
-        productId?: string;
-        productName: string;
-        quantity: number;
-        price: number;
-        dosageNote?: string;
-      }>;
-    },
+    dto: QuotePrescriptionDto,
   ) {
     const rx = this.db.prescriptions.find((p) => p.id === id);
     if (!rx) throw new NotFoundException('الروشتة غير موجودة');
+
+    // Only allow quoting for PENDING or UNDER_REVIEW prescriptions
+    if (rx.status !== 'PENDING' && rx.status !== 'UNDER_REVIEW') {
+      throw new BadRequestException(
+        `لا يمكن تسعير روشتة في حالة "${rx.status}". التسعير متاح فقط للروشتات قيد المراجعة والانتظار.`,
+      );
+    }
+
+    if (!dto.quotedItems || dto.quotedItems.length === 0) {
+      throw new BadRequestException('يجب إضافة صنف دوائي واحد على الأقل لتسعير الروشتة');
+    }
 
     const totalQuote = dto.quotedItems.reduce(
       (sum, item) => sum + Number(item.price) * Number(item.quantity),
@@ -121,6 +175,19 @@ export class PrescriptionsService {
     rx.updatedAt = new Date().toISOString();
 
     this.db.persist();
+
+    // Async sync to PostgreSQL
+    this.db.prisma.prescription.update({
+      where: { id: rx.id },
+      data: {
+        status: 'QUOTED',
+        reviewedBy: pharmacistName,
+        pharmacistNotes: dto.pharmacistNotes || null,
+        totalQuote: totalQuote,
+        quotedItems: dto.quotedItems as any,
+      },
+    }).catch((e) => console.warn('Prisma quote prescription sync warning:', e.message));
+
     return {
       message: 'تم تسعير الروشتة وإرسال التسعيرة للعميل بنجاح',
       prescription: rx,
@@ -130,12 +197,44 @@ export class PrescriptionsService {
   async updateStatus(
     id: string,
     status: 'PENDING' | 'UNDER_REVIEW' | 'QUOTED' | 'ACCEPTED' | 'REJECTED' | 'ORDER_CREATED',
+    user?: any,
   ) {
     const rx = this.db.prescriptions.find((p) => p.id === id);
     if (!rx) throw new NotFoundException('الروشتة غير موجودة');
+
+    // Check state machine validity
+    const allowedTransitions = VALID_TRANSITIONS[rx.status] || [];
+    if (!allowedTransitions.includes(status)) {
+      throw new BadRequestException(
+        `لا يمكن تحويل حالة الروشتة من "${rx.status}" إلى "${status}". التحويلات المسموحة هي: ${allowedTransitions.join(', ') || 'لا يوجد'}`,
+      );
+    }
+
+    if (user) {
+      if (user.role === 'CUSTOMER') {
+        if (rx.customerId !== user.id) {
+          throw new ForbiddenException('ليس لديك صلاحية لتعديل هذه الروشتة');
+        }
+        if (!['ACCEPTED', 'REJECTED'].includes(status) || rx.status !== 'QUOTED') {
+          throw new ForbiddenException('العميل مصرح له فقط بقبول أو رفض الروشتة المسعرة');
+        }
+      } else if (user.role !== 'ADMIN' && user.role !== 'PHARMACIST') {
+        throw new ForbiddenException('غير مصرح لك بتحديث حالة الروشتة');
+      }
+    }
+
     rx.status = status;
     rx.updatedAt = new Date().toISOString();
     this.db.persist();
+
+    // Async sync to PostgreSQL
+    await this.db.prisma.prescription
+      .update({
+        where: { id: rx.id },
+        data: { status: rx.status as any },
+      })
+      .catch((e) => console.warn('Prisma rx status update error:', e));
+
     return rx;
   }
 }

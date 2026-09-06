@@ -11,7 +11,6 @@ import { RefillModal } from '../components/refill/RefillModal';
 import { CartDrawer } from '../components/cart/CartDrawer';
 import { CheckoutModal } from '../components/checkout/CheckoutModal';
 import { ProductDetailModal } from '../components/products/ProductDetailModal';
-import { PharmacistBot } from '../components/chat/PharmacistBot';
 import { MobileBottomNav } from '../components/layout/MobileBottomNav';
 
 export const StorefrontPortal = ({ darkMode, setDarkMode }) => {
@@ -70,9 +69,6 @@ export const StorefrontPortal = ({ darkMode, setDarkMode }) => {
 
       {/* Footer */}
       <Footer />
-
-      {/* Floating AI Pharmacist Assistant */}
-      <PharmacistBot />
 
       {/* Mobile Bottom Navigation Bar */}
       <MobileBottomNav

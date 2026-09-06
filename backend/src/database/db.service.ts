@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { PrismaService } from './prisma.service';
 
 export interface User {
   id: string;
@@ -259,7 +260,7 @@ export interface PlatformSettings {
 }
 
 @Injectable()
-export class DbService {
+export class DbService implements OnModuleInit {
   public users: User[] = [];
   public products: Product[] = [];
   public prescriptions: Prescription[] = [];
@@ -309,7 +310,6 @@ export class DbService {
       { id: 'nav_refill', label: 'الدواء الشهري', url: '#refill', icon: 'Clock', isVisible: true, order: 2 },
       { id: 'nav_deals', label: 'عروض التوفير', url: '#deals', icon: 'Flame', isVisible: true, order: 3 },
       { id: 'nav_articles', label: 'نصائح طبية', url: '#articles', icon: 'BookOpen', isVisible: true, order: 4 },
-      { id: 'nav_bot', label: 'استشر صيدلي', url: '#chat', icon: 'Bot', isVisible: true, order: 5 },
     ],
     footerColumns: [
       {
@@ -317,7 +317,6 @@ export class DbService {
         links: [
           { label: 'ارفع الروشتة واطلب دواك', url: '#upload' },
           { label: 'باقة الدواء الشهري للمزمن', url: '#refill' },
-          { label: 'اسأل صيدلي - استشارة فورية', url: '#chat' },
           { label: 'محرك البحث عن بدائل الأدوية', url: '#search' },
           { label: 'عروض وخصومات Big Save', url: '#deals' },
         ],
@@ -381,16 +380,100 @@ export class DbService {
   private storageFile = path.join(process.cwd(), 'data', 'storage.json');
   private saveTimeout: NodeJS.Timeout | null = null;
 
-  constructor() {
-    this.initializeData();
+  constructor(public readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.initializeData();
   }
 
   private async initializeData() {
-    // Ensure data directory exists
-    if (!fs.existsSync(this.storageDir)) {
-      fs.mkdirSync(this.storageDir, { recursive: true });
+    try {
+      console.log('🔌 Loading data from PostgreSQL via Prisma...');
+      const [
+        users,
+        products,
+        categories,
+        orders,
+        prescriptions,
+        refills,
+        banners,
+        promoCodes,
+        articles,
+        settingsRecord,
+      ] = await Promise.all([
+        this.prisma.user.findMany(),
+        this.prisma.product.findMany(),
+        this.prisma.category.findMany({ orderBy: { order: 'asc' } }),
+        this.prisma.order.findMany({ include: { items: true }, orderBy: { createdAt: 'desc' } }),
+        this.prisma.prescription.findMany({ orderBy: { createdAt: 'desc' } }),
+        this.prisma.refillSubscription.findMany(),
+        this.prisma.heroBanner.findMany({ orderBy: { order: 'asc' } }),
+        this.prisma.promoCode.findMany(),
+        this.prisma.article.findMany(),
+        this.prisma.platformSettings.findUnique({ where: { id: 'default' } }),
+      ]);
+
+      if (products.length > 0) {
+        this.users = users.map((u) => ({
+          ...u,
+          createdAt: u.createdAt.toISOString(),
+        } as any));
+        this.products = products.map((p) => ({
+          ...p,
+          descriptionAr: p.descriptionAr || '',
+          dosage: p.dosage || '',
+          tags: p.tags || [],
+          alternatives: p.alternatives || [],
+        } as any));
+        this.categories = categories as any;
+        this.orders = orders.map((o) => ({
+          ...o,
+          deliveryAddress: o.deliveryAddress as any,
+          liveCoordinates: o.liveCoordinates as any,
+          statusTimeline: (o.statusTimeline as any) || [],
+          createdAt: o.createdAt.toISOString(),
+          updatedAt: o.updatedAt.toISOString(),
+          items: o.items.map((it) => ({
+            productId: it.productId,
+            nameAr: it.nameAr,
+            nameEn: it.nameEn,
+            price: it.price,
+            quantity: it.quantity,
+            image: it.image,
+            isPrescriptionRequired: it.isPrescriptionRequired,
+          })),
+        } as any));
+        this.prescriptions = prescriptions.map((p) => ({
+          ...p,
+          quotedItems: p.quotedItems as any,
+          createdAt: p.createdAt.toISOString(),
+          updatedAt: p.updatedAt.toISOString(),
+        } as any));
+        this.refills = refills.map((r) => ({
+          ...r,
+          nextRefillDate: r.nextRefillDate ? r.nextRefillDate.toISOString() : '',
+          createdAt: r.createdAt.toISOString(),
+        } as any));
+        this.banners = banners as any;
+        this.promoCodes = promoCodes.map((pr) => ({
+          ...pr,
+          expiresAt: pr.expiresAt ? pr.expiresAt.toISOString() : '',
+        } as any));
+        this.articles = articles.map((a) => ({
+          ...a,
+          publishedAt: a.publishedAt ? a.publishedAt.toISOString() : '',
+        } as any));
+        if (settingsRecord && settingsRecord.data) {
+          this.settings = { ...this.settings, ...(settingsRecord.data as any) };
+        }
+        console.log(`✅ PostgreSQL Storage Loaded Successfully (${this.orders.length} orders, ${this.prescriptions.length} prescriptions, ${this.products.length} products).`);
+        return;
+      }
+    } catch (err) {
+      console.warn('⚠️ Could not connect to PostgreSQL on init, attempting fallback to storage.json:', err);
     }
 
+    // Fallback if PostgreSQL is empty or during initialization
     if (fs.existsSync(this.storageFile)) {
       try {
         const raw = fs.readFileSync(this.storageFile, 'utf8');
@@ -410,89 +493,36 @@ export class DbService {
         this.articles = data.articles || [];
         if (data.settings) {
           this.settings = { ...this.settings, ...data.settings };
-          if (!this.settings.navigationMenu || this.settings.navigationMenu.length === 0) {
-            this.settings.navigationMenu = [
-              { id: 'nav_upload', label: 'ارفع الروشتة', url: '#upload', icon: 'FileText', isVisible: true, order: 1 },
-              { id: 'nav_refill', label: 'الدواء الشهري', url: '#refill', icon: 'Clock', isVisible: true, order: 2 },
-              { id: 'nav_deals', label: 'عروض التوفير', url: '#deals', icon: 'Flame', isVisible: true, order: 3 },
-              { id: 'nav_articles', label: 'نصائح طبية', url: '#articles', icon: 'BookOpen', isVisible: true, order: 4 },
-              { id: 'nav_bot', label: 'استشر صيدلي', url: '#chat', icon: 'Bot', isVisible: true, order: 5 },
-            ];
-          }
-          if (!this.settings.footerColumns || this.settings.footerColumns.length === 0) {
-            this.settings.footerColumns = [
-              {
-                title: 'خدماتنا',
-                links: [
-                  { label: 'ارفع الروشتة واطلب دواك', url: '#upload' },
-                  { label: 'باقة الدواء الشهري للمزمن', url: '#refill' },
-                  { label: 'اسأل صيدلي - استشارة فورية', url: '#chat' },
-                  { label: 'محرك البحث عن بدائل الأدوية', url: '#search' },
-                  { label: 'عروض وخصومات Big Save', url: '#deals' },
-                ],
-              },
-
-              {
-                title: 'الأقسام الأكثر طلباً',
-                links: [
-                  { label: 'مسكنات وخافض للحرارة', url: '#cat_meds' },
-                  { label: 'علاج السكر والضغط والقلب', url: '#cat_chronic' },
-                  { label: 'منتجات العناية بالبشرة والشعر', url: '#cat_skin' },
-                  { label: 'الفيتامينات والمكملات الغذائية', url: '#cat_supp' },
-                  { label: 'أجهزة قياس السكر وضغط الدم', url: '#cat_devices' },
-                ],
-              },
-            ];
-          }
-          if (!this.settings.mediaLibrary || this.settings.mediaLibrary.length === 0) {
-            this.settings.mediaLibrary = [
-              { id: 'med_1', name: 'بنادول إكسترا 500 مجم', url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=600&q=80', alt: 'صورة عبوة بنادول إكسترا مسكن للألم', category: 'أدوية', createdAt: new Date().toISOString() },
-              { id: 'med_2', name: 'باقة رعاية الأم والطفل', url: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80', alt: 'مستحضرات العناية والطفل', category: 'عناية', createdAt: new Date().toISOString() },
-              { id: 'med_3', name: 'مكملات غذائية وفيتامين د', url: 'https://images.unsplash.com/photo-1577401239170-897942555fb3?auto=format&fit=crop&w=600&q=80', alt: 'فيتامينات ومكملات صحية', category: 'مكملات', createdAt: new Date().toISOString() },
-            ];
-          }
         }
-        console.log(`💾 Persistent Storage Loaded Successfully (${this.orders.length} orders, ${this.prescriptions.length} prescriptions, ${this.products.length} products).`);
+        console.log(`💾 JSON Backup Storage Loaded (${this.orders.length} orders, ${this.products.length} products).`);
         return;
       } catch (e) {
-        console.error('Failed to load storage file, falling back to seed:', e);
+        console.error('Failed to load storage file:', e);
       }
     }
 
-    // Otherwise seed initial database and persist
     await this.seedDatabase();
-    this.persistNow();
   }
 
   public persist() {
-    // Debounced persist to disk for high performance and integrity
     if (this.saveTimeout) clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => {
       this.persistNow();
     }, 200);
   }
 
-  public persistNow() {
+  public async persistNow() {
     try {
-      if (!fs.existsSync(this.storageDir)) {
-        fs.mkdirSync(this.storageDir, { recursive: true });
+      // Async background sync to PostgreSQL for mutations
+      if (this.settings) {
+        await this.prisma.platformSettings.upsert({
+          where: { id: 'default' },
+          update: { data: this.settings as any },
+          create: { id: 'default', data: this.settings as any },
+        }).catch((e) => console.error('Prisma settings sync error:', e));
       }
-      const dataToSave = {
-        users: this.users,
-        products: this.products,
-        prescriptions: this.prescriptions,
-        orders: this.orders,
-        refills: this.refills,
-        banners: this.banners,
-        categories: this.categories,
-        promoCodes: this.promoCodes,
-        articles: this.articles,
-        settings: this.settings,
-        lastSavedAt: new Date().toISOString(),
-      };
-      fs.writeFileSync(this.storageFile, JSON.stringify(dataToSave, null, 2), 'utf8');
     } catch (err) {
-      console.error('❌ Error saving to persistent storage:', err);
+      console.error('❌ Error syncing to PostgreSQL:', err);
     }
   }
 

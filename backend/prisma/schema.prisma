@@ -1,0 +1,355 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  PHARMACIST
+  DELIVERY
+  SUPPORT
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum PrescriptionStatus {
+  PENDING
+  UNDER_REVIEW
+  QUOTED
+  ACCEPTED
+  REJECTED
+  ORDER_CREATED
+}
+
+enum OrderStatus {
+  PENDING
+  REVIEWED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum DeliveryType {
+  EXPRESS_45M
+  SCHEDULED
+  MONTHLY_REFILL
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  CARD
+  CREDIT_CARD
+  FAWRY
+  VODAFONE_CASH
+  VALU
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum RefillStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+model User {
+  id               String       @id @default(uuid())
+  name             String
+  email            String       @unique
+  phone            String
+  password         String
+  role             Role         @default(CUSTOMER)
+  status           UserStatus   @default(ACTIVE)
+  shift            String?
+  nationalId       String?
+  address          String?
+  city             String?
+  points           Int          @default(0)
+  walletBalance    Float        @default(0)
+  refreshTokenHash   String?
+  resetTokenHash     String?
+  resetTokenExpiresAt DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  deletedAt          DateTime?
+
+  orders           Order[]
+  prescriptions    Prescription[]
+  refills          RefillSubscription[]
+  promoUsages      PromoUsage[]
+  auditLogs        AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Product {
+  id                     String    @id
+  nameAr                 String
+  nameEn                 String
+  activeIngredient       String?
+  category               String
+  subCategory            String?
+  price                  Float
+  originalPrice          Float?
+  discountPercentage     Float?
+  stock                  Int       @default(0)
+  isPrescriptionRequired Boolean   @default(false)
+  isHotDeal              Boolean   @default(false)
+  rating                 Float     @default(5.0)
+  reviewCount            Int       @default(0)
+  descriptionAr          String?
+  dosage                 String?
+  sideEffects            String?
+  image                  String
+  tags                   String[]  @default([])
+  alternatives           String[]  @default([])
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  deletedAt              DateTime?
+
+  @@index([category])
+  @@index([subCategory])
+  @@index([nameAr])
+  @@index([nameEn])
+  @@index([activeIngredient])
+  @@index([isHotDeal])
+  @@index([isPrescriptionRequired])
+}
+
+model Category {
+  id           String   @id
+  name         String   @unique
+  slug         String   @unique
+  iconName     String?
+  isSpecial    Boolean  @default(false)
+  order        Int      @default(0)
+  productCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([slug])
+  @@index([order])
+}
+
+model Order {
+  id                  String         @id
+  orderNumber         String         @unique
+  customerId          String?
+  customer            User?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName        String
+  customerPhone       String
+  customerEmail       String?
+  deliveryAddress     Json
+  deliveryType        DeliveryType   @default(EXPRESS_45M)
+  scheduledTime       String?
+  paymentMethod       PaymentMethod  @default(CASH_ON_DELIVERY)
+  paymentStatus       PaymentStatus  @default(PENDING)
+  subtotal            Float
+  deliveryFee         Float          @default(0)
+  discount            Float          @default(0)
+  total               Float
+  promoCode           String?
+  prescriptionId      String?
+  notes               String?
+  status              OrderStatus    @default(PENDING)
+  assignedCourierId   String?
+  assignedCourierName String?
+  courierPhone        String?
+  liveCoordinates     Json?
+  statusTimeline      Json?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  deletedAt           DateTime?
+
+  items               OrderItem[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([assignedCourierId])
+  @@index([orderNumber])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id                     String   @id @default(uuid())
+  orderId                String
+  order                  Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId              String
+  nameAr                 String
+  nameEn                 String
+  price                  Float
+  quantity               Int
+  image                  String
+  isPrescriptionRequired Boolean  @default(false)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Prescription {
+  id                  String             @id
+  customerId          String?
+  customer            User?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName        String
+  customerPhone       String
+  customerAddress     String?
+  governorate         String?
+  district            String?
+  images              String[]           @default([])
+  imageUrl            String?
+  notes               String?
+  patientNotes        String?
+  allowAlternatives   Boolean            @default(true)
+  hasInsurance        Boolean            @default(false)
+  insuranceCompany    String?
+  insuranceCardNumber String?
+  status              PrescriptionStatus @default(PENDING)
+  pharmacistNotes     String?
+  reviewedBy          String?
+  quotedItems         Json?
+  totalQuote          Float?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RefillSubscription {
+  id              String       @id
+  customerId      String?
+  customer        User?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName    String
+  customerPhone   String
+  medicationName  String
+  dosageSchedule  String
+  monthlyQuantity Int
+  price           Float
+  deliveryAddress String
+  governorate     String
+  renewalDay      Int
+  status          RefillStatus @default(ACTIVE)
+  nextRefillDate  DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model PromoCode {
+  id                 String       @id
+  code               String       @unique
+  discountPercentage Float
+  minOrderValue      Float        @default(0)
+  maxDiscount        Float        @default(9999)
+  expiresAt          DateTime?
+  usageLimit         Int          @default(100)
+  timesUsed          Int          @default(0)
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  deletedAt          DateTime?
+
+  usages             PromoUsage[]
+
+  @@index([code])
+}
+
+model PromoUsage {
+  id          String    @id @default(uuid())
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  orderId     String?
+  usedAt      DateTime  @default(now())
+
+  @@unique([promoCodeId, userId, orderId])
+  @@index([promoCodeId])
+  @@index([userId])
+}
+
+model HeroBanner {
+  id          String   @id
+  title       String
+  subtitle    String?
+  tag         String?
+  bg          String?
+  accent      String?
+  ctaText     String?
+  actionType  String   @default("link")
+  actionValue String?
+  img         String
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([order])
+}
+
+model Article {
+  id          String    @id
+  title       String
+  summary     String?
+  content     String
+  author      String
+  authorRole  String?
+  readTime    String?
+  category    String
+  image       String
+  publishedAt DateTime?
+  isFeatured  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([category])
+  @@index([isFeatured])
+}
+
+model PlatformSettings {
+  id        String   @id @default("default")
+  data      Json
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  userEmail String?
+  userRole  String?
+  action    String
+  entity    String
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}

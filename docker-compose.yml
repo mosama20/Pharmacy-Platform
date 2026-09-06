@@ -1,6 +1,26 @@
-version: '3.8'
-
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:17-alpine
+    container_name: chefaa-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=chefaa_secret_2026
+      - POSTGRES_DB=chefaa_db
+    volumes:
+      - chefaa-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chefaa_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - chefaa-network
+
   # Chefaa NestJS Backend API
   backend:
     build:
@@ -13,8 +33,18 @@ services:
     environment:
       - PORT=5000
       - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:chefaa_secret_2026@postgres:5432/chefaa_db?schema=public
+      - JWT_SECRET=chefaa_prod_secret_key_2026_super_secure_min_32_chars
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5000/api/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
     volumes:
-      # Persistent storage volume for orders, prescriptions, and users data
       - chefaa-data:/app/data
     networks:
       - chefaa-network
@@ -29,7 +59,8 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - chefaa-network
 
@@ -39,4 +70,6 @@ networks:
 
 volumes:
   chefaa-data:
+    driver: local
+  chefaa-pgdata:
     driver: local

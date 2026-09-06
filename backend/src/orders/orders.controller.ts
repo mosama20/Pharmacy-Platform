@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { CreateOrderDto, UpdateOrderStatusDto, UpdateCourierLocationDto } from './dto/orders.dto';
 
 @Controller('orders')
 export class OrdersController {
@@ -22,8 +23,15 @@ export class OrdersController {
     private readonly trackingService: TrackingService,
   ) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
-  async createOrder(@Body() dto: any) {
+  async createOrder(@Body() dto: CreateOrderDto, @CurrentUser() user: any) {
+    if (user) {
+      dto.customerId = user.id;
+      dto.customerName = user.name || dto.customerName;
+      dto.customerPhone = user.phone || dto.customerPhone;
+      dto.customerEmail = user.email || dto.customerEmail;
+    }
     return this.ordersService.create(dto);
   }
 
@@ -57,6 +65,10 @@ export class OrdersController {
     @Query('deliveryType') deliveryType?: string,
     @Query('paymentMethod') paymentMethod?: string,
     @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('format') format?: string,
+    @Query('paginated') paginated?: string,
   ) {
     const courierId = user?.role === 'DELIVERY' ? user.id : undefined;
 
@@ -66,6 +78,10 @@ export class OrdersController {
       paymentMethod,
       search,
       courierId,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      format,
+      paginated: paginated !== undefined ? paginated === 'true' || paginated === '1' : undefined,
     });
   }
 
@@ -75,25 +91,36 @@ export class OrdersController {
     return this.ordersService.findByCustomer(user.id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id/live-tracking')
-  async getLiveTracking(@Param('id') id: string) {
-    return this.trackingService.getLiveTracking(id);
+  async getLiveTracking(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.trackingService.getLiveTracking(id, user);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async getOneOrder(@Param('id') id: string) {
-    return this.ordersService.findOne(id);
+  async getOneOrder(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.ordersService.findOne(id, user);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'PHARMACIST', 'DELIVERY')
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
-    @Body() dto: any,
+    @Body() dto: UpdateOrderStatusDto,
     @CurrentUser() user: any,
   ) {
     return this.ordersService.updateStatus(id, dto, user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/location')
+  async updateLocation(
+    @Param('id') id: string,
+    @Body() dto: UpdateCourierLocationDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.ordersService.updateCourierLocation(id, dto.lat, dto.lng, user);
   }
 }
 

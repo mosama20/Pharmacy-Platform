@@ -27,6 +27,8 @@ export class ProductsService {
     limit?: number;
     page?: number;
     all?: boolean | string;
+    format?: string;
+    paginated?: boolean | string;
   }) {
     let list = this.db.products;
 
@@ -79,11 +81,31 @@ export class ProductsService {
       return list;
     }
 
+    const total = list.length;
     const limit = query?.limit ? Number(query.limit) : 200;
     const page = query?.page ? Math.max(1, Number(query.page)) : 1;
     const startIndex = (page - 1) * limit;
+    const paginatedItems = list.slice(startIndex, startIndex + limit);
 
-    return list.slice(startIndex, startIndex + limit);
+    if (
+      query?.format === 'paginated' ||
+      query?.paginated === true ||
+      query?.paginated === 'true'
+    ) {
+      return {
+        data: paginatedItems,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit) || 1,
+          hasNext: startIndex + limit < total,
+          hasPrev: page > 1,
+        },
+      };
+    }
+
+    return paginatedItems;
   }
 
   async getCatalogStats() {

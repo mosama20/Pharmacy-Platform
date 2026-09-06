@@ -837,7 +837,7 @@ export const api = {
   analyzePrescriptionAi: async (data) => {
     const res = await fetch(`${API_BASE}/ai/analyze-prescription`, {
       method: 'POST',
-      headers: getHeaders(false),
+      headers: getHeaders(true),
       body: JSON.stringify(data),
     });
     const json = await res.json();
@@ -845,21 +845,10 @@ export const api = {
     return json;
   },
 
-  consultPharmacistAi: async (data) => {
-    const res = await fetch(`${API_BASE}/ai/pharmacist-consult`, {
-      method: 'POST',
-      headers: getHeaders(false),
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'فشل استشارة الصيدلي الذكي');
-    return json;
-  },
-
   checkDrugInteractions: async (productIds) => {
     const res = await fetch(`${API_BASE}/ai/check-interactions`, {
       method: 'POST',
-      headers: getHeaders(false),
+      headers: getHeaders(true),
       body: JSON.stringify({ productIds }),
     });
     const json = await res.json();
@@ -869,7 +858,9 @@ export const api = {
 
   // Real-time GPS Tracking
   getOrderLiveTracking: async (orderId) => {
-    const res = await fetch(`${API_BASE}/orders/${orderId}/live-tracking`);
+    const res = await fetch(`${API_BASE}/orders/${orderId}/live-tracking`, {
+      headers: getHeaders(true),
+    });
     const json = await res.json();
     if (!res.ok) throw new Error(json.message || 'فشل جلب إحداثيات التتبع الحي');
     return json;

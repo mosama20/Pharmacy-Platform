@@ -9,10 +9,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { StaffService, CreateStaffDto } from './staff.service';
+import { StaffService } from './staff.service';
+import { CreateStaffDto, UpdateStaffDto } from './dto/staff.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('staff')
@@ -35,15 +37,15 @@ export class StaffController {
   @Put(':id')
   async updateStaff(
     @Param('id') id: string,
-    @Body()
-    dto: Partial<CreateStaffDto> & { status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' },
+    @Body() dto: UpdateStaffDto,
+    @CurrentUser() user: any,
   ) {
-    return this.staffService.updateStaff(id, dto);
+    return this.staffService.updateStaff(id, dto, user);
   }
 
   @Roles('ADMIN')
   @Delete(':id')
-  async deleteStaff(@Param('id') id: string) {
-    return this.staffService.deleteStaff(id);
+  async deleteStaff(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.staffService.deleteStaff(id, user);
   }
 }

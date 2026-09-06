@@ -16,7 +16,12 @@ import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { Product } from '../database/db.service';
+import {
+  CreateProductDto,
+  UpdateProductDto,
+  ImportExcelDto,
+  ImportDefaultDto,
+} from './dto/products.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -33,6 +38,8 @@ export class ProductsController {
     @Query('limit') limit?: string,
     @Query('page') page?: string,
     @Query('all') all?: string,
+    @Query('format') format?: string,
+    @Query('paginated') paginated?: string,
   ) {
     return this.productsService.findAll({
       search,
@@ -47,6 +54,8 @@ export class ProductsController {
       limit: limit ? Number(limit) : undefined,
       page: page ? Number(page) : undefined,
       all: all !== undefined ? all === 'true' || all === '1' : undefined,
+      format,
+      paginated: paginated !== undefined ? paginated === 'true' || paginated === '1' : undefined,
     });
   }
 
@@ -65,6 +74,8 @@ export class ProductsController {
     return this.productsService.getCategoriesTree();
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'PHARMACIST')
   @Get('template-excel')
   async downloadTemplate(@Res() res: Response) {
     const buffer = this.productsService.generateExcelTemplate();
@@ -82,9 +93,7 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Post('import-excel')
-  async importExcel(
-    @Body() body: { base64?: string; filePath?: string; mode?: 'replace' | 'append' },
-  ) {
+  async importExcel(@Body() body: ImportExcelDto) {
     const mode = body.mode || 'replace';
 
     if (body.filePath) {
@@ -98,16 +107,24 @@ export class ProductsController {
       return this.productsService.importFromExcelBuffer(buffer, mode);
     }
 
-    // Default to the user's excel path
-    return this.productsService.importFromDefaultFile('D:\\chefaa_products_final_cdn.xlsx', mode);
+    const defaultPath = process.env.DEFAULT_EXCEL_PATH;
+    if (defaultPath) {
+      return this.productsService.importFromDefaultFile(defaultPath, mode);
+    }
+
+    throw new BadRequestException('يرجى تزويد ملف الإكسيل بصيغة Base64 أو تحديد مسار ملف صالح');
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Post('import-default')
-  async importDefault(@Body() body: { mode?: 'replace' | 'append' }) {
+  async importDefault(@Body() body: ImportDefaultDto) {
+    const defaultPath = process.env.DEFAULT_EXCEL_PATH;
+    if (!defaultPath) {
+      throw new BadRequestException('لم يتم ضبط مسار ملف الإكسيل الافتراضي في متغيرات البيئة (DEFAULT_EXCEL_PATH)');
+    }
     return this.productsService.importFromDefaultFile(
-      'D:\\chefaa_products_final_cdn.xlsx',
+      defaultPath,
       body.mode || 'replace',
     );
   }
@@ -120,15 +137,15 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'PHARMACIST')
   @Post()
-  async createProduct(@Body() dto: Partial<Product>) {
-    return this.productsService.create(dto);
+  async createProduct(@Body() dto: CreateProductDto) {
+    return this.productsService.create(dto as any);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'PHARMACIST')
   @Put(':id')
-  async updateProduct(@Param('id') id: string, @Body() dto: Partial<Product>) {
-    return this.productsService.update(id, dto);
+  async updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+    return this.productsService.update(id, dto as any);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -13,13 +13,24 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
+import {
+  UploadPrescriptionDto,
+  QuotePrescriptionDto,
+  UpdatePrescriptionStatusDto,
+} from './dto/prescriptions.dto';
 
 @Controller('prescriptions')
 export class PrescriptionsController {
   constructor(private readonly rxService: PrescriptionsService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post('upload')
-  async upload(@Body() dto: any) {
+  async upload(@Body() dto: UploadPrescriptionDto, @CurrentUser() user: any) {
+    if (user) {
+      dto.customerId = user.id;
+      dto.customerName = user.name || dto.customerName;
+      dto.customerPhone = user.phone || dto.customerPhone;
+    }
     return this.rxService.uploadPrescription(dto);
   }
 
@@ -36,9 +47,10 @@ export class PrescriptionsController {
     return this.rxService.findByCustomer(user.id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async getOne(@Param('id') id: string) {
-    return this.rxService.findOne(id);
+  async getOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.rxService.findOne(id, user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -47,16 +59,18 @@ export class PrescriptionsController {
   async quotePrescription(
     @Param('id') id: string,
     @CurrentUser() user: any,
-    @Body() dto: any,
+    @Body() dto: QuotePrescriptionDto,
   ) {
     return this.rxService.quotePrescription(id, user.name, dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
-    @Body('status') status: any,
+    @Body() dto: UpdatePrescriptionStatusDto,
+    @CurrentUser() user: any,
   ) {
-    return this.rxService.updateStatus(id, status);
+    return this.rxService.updateStatus(id, dto.status as any, user);
   }
 }

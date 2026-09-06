@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { DbService, Order } from '../database/db.service';
 
 export interface LiveTrackingData {
   orderId: string;
   orderNumber: string;
   status: Order['status'];
+  isSimulated?: boolean;
   pharmacyLocation: {
     lat: number;
     lng: number;
@@ -74,10 +75,20 @@ const GOVERNORATE_COORDINATES: Record<string, { lat: number; lng: number; branch
 export class TrackingService {
   constructor(private readonly db: DbService) {}
 
-  getLiveTracking(orderId: string): LiveTrackingData {
+  getLiveTracking(orderId: string, user?: any): LiveTrackingData {
     const order = this.db.orders.find((o) => o.id === orderId || o.orderNumber === orderId);
     if (!order) {
       throw new NotFoundException('الطلب غير موجود');
+    }
+
+    if (user) {
+      const isStaff = user.role === 'ADMIN' || user.role === 'SUPPORT' || user.role === 'PHARMACIST';
+      const isOwner = order.customerId === user.id;
+      const isAssignedCourier = user.role === 'DELIVERY' && order.assignedCourierId === user.id;
+
+      if (!isStaff && !isOwner && !isAssignedCourier) {
+        throw new ForbiddenException('غير مصرح لك بمتابعة التتبع المباشر لهذا الطلب');
+      }
     }
 
     const gov = order.deliveryAddress?.governorate || 'القاهرة';

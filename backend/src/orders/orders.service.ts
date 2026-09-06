@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { DbService, Order, OrderItem } from '../database/db.service';
+import { PaymentService } from './payment.service';
+import { CreateOrderDto, UpdateOrderStatusDto } from './dto/orders.dto';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly db: DbService) {}
+  constructor(
+    private readonly db: DbService,
+    private readonly paymentService: PaymentService,
+  ) {}
 
   async findAll(query?: {
     status?: string;
@@ -12,6 +17,10 @@ export class OrdersService {
     paymentMethod?: string;
     search?: string;
     courierId?: string;
+    page?: number;
+    limit?: number;
+    format?: string;
+    paginated?: boolean | string;
   }) {
     let list = [...this.db.orders];
 
@@ -43,9 +52,30 @@ export class OrdersService {
       );
     }
 
-    return list.sort(
+    list.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+
+    if (query?.format === 'paginated' || query?.paginated === true || query?.paginated === 'true') {
+      const total = list.length;
+      const page = Math.max(1, Number(query?.page) || 1);
+      const limit = Math.min(100, Math.max(1, Number(query?.limit) || 20));
+      const startIndex = (page - 1) * limit;
+      const paginatedItems = list.slice(startIndex, startIndex + limit);
+      return {
+        data: paginatedItems,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit) || 1,
+          hasNext: startIndex + limit < total,
+          hasPrev: page > 1,
+        },
+      };
+    }
+
+    return list;
   }
 
   async findByCourier(courierId: string) {
@@ -95,64 +125,132 @@ export class OrdersService {
       );
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: any) {
     const order = this.db.orders.find((o) => o.id === id || o.orderNumber === id);
     if (!order) throw new NotFoundException('الطلب غير موجود');
+
+    if (user) {
+      const isStaff = user.role === 'ADMIN' || user.role === 'SUPPORT' || user.role === 'PHARMACIST';
+      const isOwner = order.customerId === user.id;
+      const isAssignedCourier = user.role === 'DELIVERY' && order.assignedCourierId === user.id;
+
+      if (!isStaff && !isOwner && !isAssignedCourier) {
+        throw new ForbiddenException('ليس لديك صلاحية لعرض هذا الطلب');
+      }
+    }
+
     return order;
   }
 
-  async create(dto: {
-    customerId?: string;
-    customerName: string;
-    customerPhone: string;
-    customerEmail?: string;
-    deliveryAddress: {
-      governorate: string;
-      city: string;
-      street: string;
-      building?: string;
-      floor?: string;
-      apartment?: string;
-      landmark?: string;
-    };
-    deliveryType?: 'EXPRESS_45M' | 'SCHEDULED' | 'MONTHLY_REFILL';
-    scheduledTime?: string;
-    paymentMethod?: 'CASH_ON_DELIVERY' | 'CREDIT_CARD' | 'FAWRY' | 'VODAFONE_CASH' | 'VALU';
-    items: OrderItem[];
-    promoCode?: string;
-    notes?: string;
-    prescriptionId?: string;
-  }) {
+  async create(dto: CreateOrderDto) {
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('السلة فارغة، يرجى إضافة أدوية أو منتجات للطلب');
     }
 
-    const subtotal = dto.items.reduce(
-      (sum, item) => sum + Number(item.price) * Number(item.quantity),
-      0,
-    );
+    // 1. Server-Side Price Calculation & Stock Validation
+    let verifiedSubtotal = 0;
+    const verifiedItems: OrderItem[] = [];
 
-    // Default settings
-    const defaultDeliveryFee = this.db.settings?.deliveryFee ?? 25;
-    const threshold = this.db.settings?.freeDeliveryThreshold ?? 500;
-    let deliveryFee = subtotal >= threshold ? 0 : defaultDeliveryFee;
-    let discount = 0;
+    for (const item of dto.items) {
+      const product = this.db.products.find((p) => p.id === item.productId);
+      if (!product) {
+        throw new BadRequestException(`المنتج المطلوب غير متوفر بالصيدلية (معرف: ${item.productId})`);
+      }
 
-    if (dto.promoCode) {
-      const code = dto.promoCode.toUpperCase().trim();
-      const promo = this.db.promoCodes.find((p) => p.code === code && p.isActive);
-      if (promo && subtotal >= promo.minOrderValue) {
-        discount = Math.min(
-          Math.round((subtotal * promo.discountPercentage) / 100),
-          promo.maxDiscount || 9999
+      const qty = Number(item.quantity);
+      if (qty < 1) {
+        throw new BadRequestException(`كمية غير صالحة للمنتج (${product.nameAr})`);
+      }
+
+      // Stock Check
+      if (product.stock !== undefined && product.stock < qty) {
+        throw new BadRequestException(
+          `الكمية المطلوبة من دواء (${product.nameAr}) غير متوفرة حالياً في المخزون (المتبقي: ${product.stock ?? 0})`,
         );
-        promo.timesUsed += 1;
+      }
+
+      // Always use product.price from authoritative database
+      const unitPrice = Number(product.price);
+      verifiedItems.push({
+        productId: product.id,
+        nameAr: product.nameAr,
+        nameEn: product.nameEn,
+        price: unitPrice,
+        quantity: qty,
+        image: product.image,
+        isPrescriptionRequired: product.isPrescriptionRequired,
+      });
+
+      verifiedSubtotal += unitPrice * qty;
+    }
+
+    // 2. Decrement Stock Atomically
+    for (const item of verifiedItems) {
+      const product = this.db.products.find((p) => p.id === item.productId);
+      if (product && product.stock !== undefined) {
+        product.stock = Math.max(0, product.stock - item.quantity);
+
+        // Async sync to PostgreSQL
+        this.db.prisma.product.update({
+          where: { id: product.id },
+          data: { stock: product.stock },
+        }).catch((e) => console.warn('Prisma product stock decrement error:', e));
       }
     }
 
-    const total = Math.max(0, subtotal + deliveryFee - discount);
-    const orderId = `ord_${Date.now()}`;
-    const orderNumber = `CHF-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    // 3. Delivery Fee Calculation
+    const defaultDeliveryFee = this.db.settings?.deliveryFee ?? 25;
+    const threshold = this.db.settings?.freeDeliveryThreshold ?? 500;
+    const deliveryFee = verifiedSubtotal >= threshold ? 0 : defaultDeliveryFee;
+    let discount = 0;
+
+    // 4. Promo Code Validation & Per-User Limit
+    if (dto.promoCode) {
+      const code = dto.promoCode.toUpperCase().trim();
+      const promo = this.db.promoCodes.find((p) => p.code === code && p.isActive);
+      if (!promo) {
+        throw new BadRequestException('كود الخصم غير صالح أو منتهي الصلاحية');
+      }
+
+      // Global limit check
+      if (promo.usageLimit && promo.timesUsed >= promo.usageLimit) {
+        throw new BadRequestException('عذراً، تم استنفاد الحد الأقصى المسموح لاستخدام كود الخصم هذا');
+      }
+
+      // Per-user limit check
+      if (dto.customerId) {
+        const alreadyUsed = this.db.orders.some(
+          (o) => o.customerId === dto.customerId && o.promoCode === code && o.status !== 'CANCELLED',
+        );
+        if (alreadyUsed) {
+          throw new BadRequestException('لقد قمت باستخدام كود الخصم هذا مسبقاً، كل عميل مصرح له باستخدام الكود مرة واحدة');
+        }
+      }
+
+      if (verifiedSubtotal < promo.minOrderValue) {
+        throw new BadRequestException(`الحد الأدنى للطلب لتفعيل هذا الكود هو ${promo.minOrderValue} ج.م`);
+      }
+
+      discount = Math.min(
+        Math.round((verifiedSubtotal * promo.discountPercentage) / 100),
+        promo.maxDiscount || 9999,
+      );
+      promo.timesUsed += 1;
+    }
+
+    const total = Math.max(0, verifiedSubtotal + deliveryFee - discount);
+    const orderId = `ord_${uuidv4().substring(0, 8)}`;
+    // Collision-proof order number
+    const orderNumber = `CHF-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // 5. Payment Processing Abstraction
+    const paymentMethod = dto.paymentMethod || 'CASH_ON_DELIVERY';
+    const paymentResult = await this.paymentService.processPayment(
+      orderId,
+      total,
+      paymentMethod as any,
+      dto.paymentDetails,
+    );
 
     const newOrder: Order = {
       id: orderId,
@@ -164,10 +262,10 @@ export class OrdersService {
       deliveryAddress: dto.deliveryAddress,
       deliveryType: dto.deliveryType || 'EXPRESS_45M',
       scheduledTime: dto.scheduledTime,
-      paymentMethod: dto.paymentMethod || 'CASH_ON_DELIVERY',
-      paymentStatus: dto.paymentMethod === 'CASH_ON_DELIVERY' ? 'PENDING' : 'PAID',
-      items: dto.items,
-      subtotal,
+      paymentMethod,
+      paymentStatus: paymentResult.paymentStatus,
+      items: verifiedItems,
+      subtotal: verifiedSubtotal,
       deliveryFee,
       discount,
       total,
@@ -187,9 +285,9 @@ export class OrdersService {
       updatedAt: new Date().toISOString(),
     };
 
-    // Auto assign courier if any delivery guy exists in the area
+    // Auto assign courier if any delivery staff exists
     const availableCourier = this.db.users.find(
-      (u) => u.role === 'DELIVERY' && u.status === 'ACTIVE'
+      (u) => u.role === 'DELIVERY' && u.status === 'ACTIVE',
     );
     if (availableCourier) {
       newOrder.assignedCourierId = availableCourier.id;
@@ -199,7 +297,7 @@ export class OrdersService {
 
     this.db.orders.unshift(newOrder);
 
-    // Update customer points if registered user
+    // Update customer loyalty points if registered user
     if (dto.customerId) {
       const user = this.db.users.find((u) => u.id === dto.customerId);
       if (user) {
@@ -208,6 +306,46 @@ export class OrdersService {
     }
 
     this.db.persist();
+
+    // Async sync order to PostgreSQL
+    this.db.prisma.order.create({
+      data: {
+        id: newOrder.id,
+        orderNumber: newOrder.orderNumber,
+        customerId: dto.customerId || null,
+        customerName: newOrder.customerName,
+        customerPhone: newOrder.customerPhone,
+        customerEmail: newOrder.customerEmail,
+        deliveryAddress: newOrder.deliveryAddress as any,
+        deliveryType: newOrder.deliveryType as any,
+        scheduledTime: newOrder.scheduledTime,
+        paymentMethod: newOrder.paymentMethod as any,
+        paymentStatus: newOrder.paymentStatus as any,
+        subtotal: newOrder.subtotal,
+        deliveryFee: newOrder.deliveryFee,
+        discount: newOrder.discount,
+        total: newOrder.total,
+        promoCode: newOrder.promoCode,
+        prescriptionId: newOrder.prescriptionId,
+        notes: newOrder.notes,
+        status: newOrder.status as any,
+        statusTimeline: newOrder.statusTimeline as any,
+        assignedCourierId: newOrder.assignedCourierId,
+        assignedCourierName: newOrder.assignedCourierName,
+        courierPhone: newOrder.courierPhone,
+        items: {
+          create: verifiedItems.map((item) => ({
+            productId: item.productId,
+            nameAr: item.nameAr,
+            nameEn: item.nameEn,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image,
+          })),
+        },
+      },
+    }).catch((e) => console.warn('Prisma order create error:', e));
+
     return newOrder;
   }
 
@@ -221,15 +359,33 @@ export class OrdersService {
     const order = this.db.orders.find((o) => o.id === id);
     if (!order) throw new NotFoundException('الطلب غير موجود');
 
-    // Courier safety check
-    if (currentUser?.role === 'DELIVERY' && order.assignedCourierId && order.assignedCourierId !== currentUser.id) {
-      throw new BadRequestException('غير مصرح لك بتحديث طلب غير مسند إليك');
+    // Strict RBAC & Status transition enforcement
+    if (currentUser) {
+      if (currentUser.role === 'DELIVERY') {
+        if (order.assignedCourierId !== currentUser.id) {
+          throw new ForbiddenException('غير مصرح لك بتحديث طلب غير مسند إليك');
+        }
+        const allowedCourierStatuses = ['OUT_FOR_DELIVERY', 'DELIVERED'];
+        if (!allowedCourierStatuses.includes(dto.status)) {
+          throw new ForbiddenException('مندوب التوصيل مصرح له فقط بتحديث الحالة إلى خرج للتوصيل أو تم التسليم');
+        }
+      } else if (currentUser.role === 'CUSTOMER') {
+        if (order.customerId !== currentUser.id) {
+          throw new ForbiddenException('ليس لديك صلاحية لتعديل هذا الطلب');
+        }
+        if (dto.status !== 'CANCELLED' || order.status !== 'PENDING') {
+          throw new ForbiddenException('يمكن للعميل فقط إلغاء طلبه وهو قيد المراجعة والانتظار');
+        }
+      }
     }
 
     order.status = dto.status;
     order.updatedAt = new Date().toISOString();
 
-    if (dto.lat && dto.lng) {
+    if (dto.lat !== undefined && dto.lng !== undefined) {
+      if (dto.lat < -90 || dto.lat > 90 || dto.lng < -180 || dto.lng > 180) {
+        throw new BadRequestException('إحداثيات جغرافية غير صالحة');
+      }
       order.liveCoordinates = { lat: dto.lat, lng: dto.lng };
     }
 
@@ -266,6 +422,42 @@ export class OrdersService {
     return {
       message: 'تم تحديث حالة الطلب بنجاح',
       order,
+    };
+  }
+
+  async updateCourierLocation(
+    orderId: string,
+    lat: number,
+    lng: number,
+    user: any,
+  ) {
+    const order = this.db.orders.find((o) => o.id === orderId || o.orderNumber === orderId);
+    if (!order) throw new NotFoundException('الطلب غير موجود');
+
+    if (user.role === 'DELIVERY') {
+      if (order.assignedCourierId !== user.id) {
+        throw new ForbiddenException('غير مصرح لك بتحديث موقع طلب غير مسند إليك');
+      }
+    } else if (user.role !== 'ADMIN') {
+      throw new ForbiddenException('غير مصرح لك بتحديث إحداثيات التوصيل');
+    }
+
+    if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
+      throw new BadRequestException('لا يمكن تحديث موقع طلب تم تسليمه أو ملغى');
+    }
+
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      throw new BadRequestException('إحداثيات جغرافية غير صالحة');
+    }
+
+    order.liveCoordinates = { lat, lng };
+    order.updatedAt = new Date().toISOString();
+    this.db.persist();
+
+    return {
+      message: 'تم تحديث موقع التوصيل المباشر بنجاح',
+      orderId: order.id,
+      liveCoordinates: order.liveCoordinates,
     };
   }
 

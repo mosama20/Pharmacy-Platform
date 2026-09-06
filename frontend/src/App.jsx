@@ -9,6 +9,7 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { StaffLogin } from './pages/StaffLogin';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 export function AppRoutes() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -168,14 +169,17 @@ export function AppRoutes() {
 
 export default function App() {
   return (
-    <CmsProvider>
-      <AuthProvider>
-        <LocationProvider>
-          <CartProvider>
-            <AppRoutes />
-          </CartProvider>
-        </LocationProvider>
-      </AuthProvider>
-    </CmsProvider>
+    <ErrorBoundary>
+      <CmsProvider>
+        <AuthProvider>
+          <LocationProvider>
+            <CartProvider>
+              <AppRoutes />
+            </CartProvider>
+          </LocationProvider>
+        </AuthProvider>
+      </CmsProvider>
+    </ErrorBoundary>
   );
 }
+

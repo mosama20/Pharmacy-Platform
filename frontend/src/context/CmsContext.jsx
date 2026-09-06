@@ -39,7 +39,6 @@ const defaultSettings = {
     { id: 'nav_refill', label: 'الدواء الشهري', url: '#refill', icon: 'Clock', isVisible: true, order: 2 },
     { id: 'nav_deals', label: 'عروض التوفير', url: '#deals', icon: 'Flame', isVisible: true, order: 3 },
     { id: 'nav_articles', label: 'نصائح طبية', url: '#articles', icon: 'BookOpen', isVisible: true, order: 4 },
-    { id: 'nav_bot', label: 'استشر صيدلي', url: '#chat', icon: 'Bot', isVisible: true, order: 5 },
   ],
   footerColumns: [
     {
@@ -47,7 +46,6 @@ const defaultSettings = {
       links: [
         { label: 'ارفع الروشتة واطلب دواك', url: '#upload' },
         { label: 'باقة الدواء الشهري للمزمن', url: '#refill' },
-        { label: 'اسأل صيدلي - استشارة فورية', url: '#chat' },
         { label: 'محرك البحث عن بدائل الأدوية', url: '#search' },
         { label: 'عروض وخصومات Big Save', url: '#deals' },
       ],
