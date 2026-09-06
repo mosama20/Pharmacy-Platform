@@ -38,16 +38,29 @@ export class PrescriptionsService {
     customerAddress?: string;
     governorate?: string;
     district?: string;
-    images: string[];
+    images?: string[];
+    imageUrl?: string;
     notes?: string;
+    patientNotes?: string;
     allowAlternatives?: boolean;
     hasInsurance?: boolean;
     insuranceCompany?: string;
     insuranceCardNumber?: string;
   }) {
-    if (!dto.images || dto.images.length === 0) {
+    const rawImages: string[] = [];
+    if (Array.isArray(dto.images) && dto.images.length > 0) {
+      rawImages.push(...dto.images.filter(Boolean));
+    }
+    if (dto.imageUrl && !rawImages.includes(dto.imageUrl)) {
+      rawImages.unshift(dto.imageUrl);
+    }
+
+    if (rawImages.length === 0) {
       throw new BadRequestException('يجب إرفاق صورة واحدة للروشتة على الأقل');
     }
+
+    const primaryImageUrl = rawImages[0];
+    const patientNotes = dto.patientNotes || dto.notes || '';
 
     const newRx: Prescription = {
       id: `rx_${uuidv4().substring(0, 8)}`,
@@ -57,8 +70,10 @@ export class PrescriptionsService {
       customerAddress: dto.customerAddress || 'القاهرة',
       governorate: dto.governorate || 'القاهرة',
       district: dto.district || 'المعادي',
-      images: dto.images,
-      notes: dto.notes || '',
+      images: rawImages,
+      imageUrl: primaryImageUrl,
+      notes: patientNotes,
+      patientNotes: patientNotes,
       allowAlternatives: Boolean(dto.allowAlternatives),
       hasInsurance: Boolean(dto.hasInsurance),
       insuranceCompany: dto.insuranceCompany,

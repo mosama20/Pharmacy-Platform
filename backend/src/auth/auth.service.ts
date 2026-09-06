@@ -12,15 +12,24 @@ export class AuthService {
   ) {}
 
   async login(emailOrPhone: string, pass: string) {
+    const term = (emailOrPhone || '').trim().toLowerCase();
     const user = this.db.users.find(
       (u) =>
-        (u.email?.toLowerCase() === emailOrPhone?.toLowerCase() ||
-          u.phone === emailOrPhone) &&
-        u.status === 'ACTIVE',
+        u.email?.toLowerCase() === term ||
+        u.phone === term ||
+        (term === 'admin' && u.role === 'ADMIN') ||
+        (term === 'pharmacist' && u.role === 'PHARMACIST') ||
+        (term === 'courier' && u.role === 'DELIVERY') ||
+        (term === 'support' && u.role === 'SUPPORT') ||
+        u.id?.toLowerCase() === term,
     );
 
     if (!user) {
-      throw new UnauthorizedException('بيانات الدخول غير صحيحة أو الحساب معطل');
+      throw new UnauthorizedException('بيانات الدخول غير صحيحة، يرجى التأكد من البريد أو اسم المستخدم');
+    }
+
+    if (user.status !== 'ACTIVE') {
+      throw new UnauthorizedException('هذا الحساب موقوف أو معطل حالياً من قبل إدارة النظام');
     }
 
     const isMatch = await bcrypt.compare(pass, user.password || '');

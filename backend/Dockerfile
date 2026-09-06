@@ -18,11 +18,9 @@ ENV NODE_ENV=production
 ENV PORT=5000
 
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src/database/products.json ./dist/database/products.json
-COPY --from=builder /app/src/database/products.json ./src/database/products.json
 
 # Create data directory for persistent disk storage
 RUN mkdir -p /app/data

@@ -5,7 +5,7 @@
       "name": "د. أيمن مسعد (المدير الطبي والمسؤول)",
       "email": "admin@pharmacy.com",
       "phone": "01012345678",
-      "password": "$2a$10$pQOygRwxj9/qbj/1LPftHew1E.mXs3/Fi5v8TtTmSgz.8XyotlUrS",
+      "password": ".CGGFLCfr2vEXmfE0NEH65soKeAYGmzS",
       "role": "ADMIN",
       "status": "ACTIVE",
       "shift": "صباحي (8 ص - 4 م)",
@@ -18,7 +18,7 @@
       "name": "د. سارة محمود (صيدلانية مراجعة وإكلينيكية)",
       "email": "pharmacist@pharmacy.com",
       "phone": "01123456789",
-      "password": "$2a$10$pQOygRwxj9/qbj/1LPftHew1E.mXs3/Fi5v8TtTmSgz.8XyotlUrS",
+      "password": ".CGGFLCfr2vEXmfE0NEH65soKeAYGmzS",
       "role": "PHARMACIST",
       "status": "ACTIVE",
       "shift": "مسائي (4 م - 12 ص)",
@@ -31,7 +31,7 @@
       "name": "كابتن أحمد علي (مندوب توصيل سريع)",
       "email": "courier@pharmacy.com",
       "phone": "01234567890",
-      "password": "$2a$10$pQOygRwxj9/qbj/1LPftHew1E.mXs3/Fi5v8TtTmSgz.8XyotlUrS",
+      "password": ".CGGFLCfr2vEXmfE0NEH65soKeAYGmzS",
       "role": "DELIVERY",
       "status": "ACTIVE",
       "shift": "كامل (10 ص - 8 م)",
@@ -44,7 +44,7 @@
       "name": "مروة الشافعي (خدمة العملاء والدعم)",
       "email": "support@pharmacy.com",
       "phone": "01098765432",
-      "password": "$2a$10$pQOygRwxj9/qbj/1LPftHew1E.mXs3/Fi5v8TtTmSgz.8XyotlUrS",
+      "password": ".CGGFLCfr2vEXmfE0NEH65soKeAYGmzS",
       "role": "SUPPORT",
       "status": "ACTIVE",
       "shift": "صباحي (9 ص - 5 م)",
@@ -290085,7 +290085,9 @@
       "hasInsurance": false,
       "status": "PENDING",
       "createdAt": "2026-09-02T04:49:41.185Z",
-      "updatedAt": "2026-09-02T04:49:41.185Z"
+      "updatedAt": "2026-09-02T04:49:41.185Z",
+      "imageUrl": "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80",
+      "patientNotes": "يرجى مراجعة بديل الأوجمنتين إذا لم يتوفر، وإضافة شريط بنادول إكسترا."
     },
     {
       "id": "rx_102",
@@ -290124,7 +290126,9 @@
       ],
       "totalQuote": 322,
       "createdAt": "2026-09-02T03:49:41.185Z",
-      "updatedAt": "2026-09-02T05:19:41.185Z"
+      "updatedAt": "2026-09-02T05:19:41.185Z",
+      "imageUrl": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80",
+      "patientNotes": "عندي تأمين أكسا كير رقم 448920."
     }
   ],
   "orders": [

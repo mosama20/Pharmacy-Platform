@@ -24,6 +24,10 @@ import {
   Globe,
   Phone,
   Share2,
+  PackageCheck,
+  CheckCircle2,
+  DollarSign,
+  MapPin,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useCms } from '../../../context/CmsContext';
@@ -40,13 +44,15 @@ export const AdminSidebar = ({
   onBackToStore,
   pendingOrdersCount = 0,
   pendingRxCount = 0,
+  activeDeliveriesCount = 0,
+  readyDeliveriesCount = 0,
 }) => {
   const { user, logout, isAdmin, isPharmacist, isCourier, isSupport } = useAuth();
   const { settings } = useCms();
 
   const handleNavClick = (tabId, subTabId = null) => {
     setActiveTab(tabId);
-    if (subTabId && setCmsActiveSubTab) {
+    if (tabId === 'cms' && subTabId && setCmsActiveSubTab) {
       setCmsActiveSubTab(subTabId);
     }
     if (setMobileOpen) setMobileOpen(false);
@@ -85,11 +91,57 @@ export const AdminSidebar = ({
           icon: Clock,
           visible: isAdmin || isPharmacist || isSupport,
         },
+      ],
+    },
+    {
+      groupTitle: 'الشحن وبوابة التوصيل',
+      visible: isAdmin || isCourier,
+      items: [
         {
           id: 'courier',
-          label: 'بوابة مهام التوصيل',
+          subId: 'active',
+          label: 'مهام في الطريق (النشطة)',
           icon: Truck,
+          badge: activeDeliveriesCount > 0 ? activeDeliveriesCount : null,
+          badgeColor: 'bg-amber-500 text-slate-950 font-black animate-pulse',
           visible: isAdmin || isCourier,
+        },
+        {
+          id: 'courier',
+          subId: 'ready',
+          label: 'جاهز للاستلام والتوصيل',
+          icon: PackageCheck,
+          badge: readyDeliveriesCount > 0 ? readyDeliveriesCount : null,
+          badgeColor: 'bg-blue-600 text-white',
+          visible: isAdmin || isCourier,
+        },
+        {
+          id: 'courier',
+          subId: 'delivered',
+          label: 'سجل الشحنات المسلّمة',
+          icon: CheckCircle2,
+          visible: isAdmin || isCourier,
+        },
+        {
+          id: 'courier',
+          subId: 'finances',
+          label: 'التحصيل والعهدة النقدية',
+          icon: DollarSign,
+          visible: isAdmin || isCourier,
+        },
+        {
+          id: 'courier',
+          subId: 'map',
+          label: 'خريطة ومسارات التوصيل',
+          icon: MapPin,
+          visible: isAdmin || isCourier,
+        },
+        {
+          id: 'courier',
+          subId: 'dispatch',
+          label: 'توزيع وتعيين المناديب',
+          icon: Users,
+          visible: isAdmin,
         },
       ],
     },
@@ -198,11 +250,9 @@ export const AdminSidebar = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 right-0 z-50 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200/80 dark:border-slate-800 shadow-xl transition-all duration-300 ease-in-out font-cairo ${
-          collapsed ? 'w-20' : 'w-72'
-        } ${
-          mobileOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
-        }`}
+        className={`fixed top-0 bottom-0 right-0 z-50 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200/80 dark:border-slate-800 shadow-xl transition-all duration-300 ease-in-out font-cairo ${collapsed ? 'w-20' : 'w-72'
+          } ${mobileOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
+          }`}
       >
         {/* 1. Sidebar Header with CMS Branding */}
         <div className="h-16 px-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 shrink-0">
@@ -269,17 +319,15 @@ export const AdminSidebar = ({
                       <button
                         key={`${item.id}-${item.subId || ''}`}
                         onClick={() => handleNavClick(item.id, item.subId)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all group relative cursor-pointer ${
-                          isActive
-                            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all group relative cursor-pointer ${isActive
+                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                          }`}
                         title={collapsed ? item.label : undefined}
                       >
                         <Icon
-                          className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${
-                            isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
-                          }`}
+                          className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
+                            }`}
                         />
 
                         {!collapsed && (
@@ -317,9 +365,8 @@ export const AdminSidebar = ({
               window.location.hash = 'store';
               onBackToStore();
             }}
-            className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-xs font-bold transition-colors cursor-pointer ${
-              collapsed ? 'px-0' : ''
-            }`}
+            className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-xs font-bold transition-colors cursor-pointer ${collapsed ? 'px-0' : ''
+              }`}
             title="الذهاب لمتجر العملاء"
           >
             <Store className="w-4 h-4 shrink-0" />
@@ -342,12 +389,12 @@ export const AdminSidebar = ({
                     {user?.role === 'ADMIN'
                       ? 'مدير النظام'
                       : user?.role === 'PHARMACIST'
-                      ? 'صيدلي مراجع'
-                      : user?.role === 'DELIVERY'
-                      ? 'مندوب توصيل'
-                      : user?.role === 'SUPPORT'
-                      ? 'خدمة العملاء'
-                      : 'طاقم العمل'}
+                        ? 'صيدلي مراجع'
+                        : user?.role === 'DELIVERY'
+                          ? 'مندوب توصيل'
+                          : user?.role === 'SUPPORT'
+                            ? 'خدمة العملاء'
+                            : 'طاقم العمل'}
                   </span>
                 </div>
               )}

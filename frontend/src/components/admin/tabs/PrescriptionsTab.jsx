@@ -78,9 +78,9 @@ export const PrescriptionsTab = ({
                   {/* Thumbnail & Patient info */}
                   <div className="flex gap-3">
                     <div className="w-20 h-24 rounded-2xl bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-                      {rx.imageUrl ? (
+                      {(rx.imageUrl || (Array.isArray(rx.images) && rx.images[0]) || (typeof rx.images === 'string' && rx.images)) ? (
                         <img
-                          src={rx.imageUrl}
+                          src={rx.imageUrl || (Array.isArray(rx.images) ? rx.images[0] : rx.images)}
                           alt="Rx"
                           className="w-full h-full object-cover"
                         />

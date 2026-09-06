@@ -24,7 +24,11 @@ const CMS_SUBTAB_TITLES = {
   seo: 'محركات البحث (SEO)',
 };
 
-export const AdminBreadcrumbs = ({ activeTab, cmsActiveSubTab, onTabClick }) => {
+export const AdminBreadcrumbs = ({
+  activeTab,
+  cmsActiveSubTab,
+  onTabClick,
+}) => {
   const currentTabTitle = TAB_TITLES[activeTab] || activeTab;
   const currentSubTitle = activeTab === 'cms' ? CMS_SUBTAB_TITLES[cmsActiveSubTab] : null;
 
@@ -43,7 +47,7 @@ export const AdminBreadcrumbs = ({ activeTab, cmsActiveSubTab, onTabClick }) => 
       {currentSubTitle ? (
         <>
           <button
-            onClick={() => onTabClick('cms')}
+            onClick={() => onTabClick(activeTab)}
             className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           >
             {currentTabTitle}

@@ -7,20 +7,24 @@
 ## 🌟 أبرز الميزات المنجزة في المشروع
 
 ### 1. 💾 قاعدة بيانات دائمة وحفظ فوري للبيانات (Production Persistence)
+
 - نظام تخزين ذري آمن (`Atomic Persistence`) يضمن حفظ وحماية كافة الطلبات، الروشتات، العملاء، ومحفظة النقاط على القرص تلقائياً مع تفادي فقدان البيانات عند إعادة التشغيل.
 - دعم التهيئة والتغذية الأولية بآلاف الأدوية والمنتجات الحقيقية.
 
 ### 2. 🧠 الذكاء الاصطناعي وقراءة الروشتات (AI Vision OCR & AI Pharmacist)
+
 - **مسح الروشتات بالـ AI OCR:** قراءة خط يد الأطباء بدقة عالية، وتحديد المواد الفعالة والجرعات، ومطابقتها تلقائياً مع كتالوج الصيدلية.
 - **محرك البدائل الأرخص (Cheaper Generic Matcher):** استخراج البديل المصري المماثل بنفس الكفاءة والمادة الفعالة مع حساب التوفير المالي بنقرة واحدة.
 - **صيدلي شفاء الذكي (AI Pharmacist Assistant):** شات بوت طبي متطور للإجابة على الاستفسارات الدوائية، وفحص التفاعلات الدوائية الخطرة (Drug-Drug Interactions)، وتحديد الجرعات المناسبة.
 
 ### 3. 🛵 التتبع الحي لمسار التوصيل والـ GPS (Real-Time GPS Tracking)
+
 - خريطة تفاعلية حية تعرض مسار تحرك المندوب من الصيدلية إلى موقع العميل.
 - حساب المسافة المتبقية، والوقت المتوقع للوصول (Dynamic ETA Countdown).
 - بطاقة المندوب مع وسيلة الاتصال المباشرة وتفاصيل الرحلة.
 
 ### 4. 🐳 دعم Docker الكامل (Production-Ready Containers)
+
 - تشغيل المنظومة كاملة (الفرونت إند، الباك إند، Nginx، والـ Persistent Volume) بأمر واحد.
 
 ---
@@ -28,6 +32,7 @@
 ## 🚀 طرق التشغيل (How to Run)
 
 ### الخيار 1: التشغيل بضغطة زر عبر Docker (الأسهل والأسرع)
+
 ```bash
 # تشغيل جميع الخدمات في الخلفية
 docker compose up -d --build
@@ -35,6 +40,7 @@ docker compose up -d --build
 # إيقاف الخدمات
 docker compose down
 ```
+
 - **واجهة المستخدم (Frontend):** `http://localhost`
 - **واجهة الـ API (Backend):** `http://localhost:5000/api`
 
@@ -43,28 +49,32 @@ docker compose down
 ### الخيار 2: التشغيل المحلي (Development Mode)
 
 #### 1. تشغيل الـ Backend (NestJS):
+
 ```bash
 cd backend
 npm install
 npm run start:dev
 ```
+
 يعمل على `http://localhost:5000/api`
 
 #### 2. تشغيل الـ Frontend (React + Vite):
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
 يعمل على `http://localhost:5173`
 
 ---
 
 ## 🔑 الحسابات الافتراضية للاختبار (Admin & Staff Credentials)
 
-| الدور | البريد الإلكتروني | كلمة المرور |
-| :--- | :--- | :--- |
-| **المدير العام والمسؤول (Admin)** | `admin@chefaa.com` | `admin123` |
-| **صيدلي المراجعة (Pharmacist)** | `pharmacist@chefaa.com` | `admin123` |
-| **كابتن التوصيل (Delivery Courier)** | `courier@chefaa.com` | `admin123` |
-| **عميل تجريبي (Customer)** | `user@gmail.com` | `123456` |
+| الدور                                                 | البريد الإلكتروني | كلمة المرور |
+| :--------------------------------------------------------- | :-------------------------------- | :-------------------- |
+| **المدير العام والمسؤول (Admin)** | `admin@chefaa.com`              | `admin123`          |
+| **صيدلي المراجعة (Pharmacist)**         | `pharmacist@chefaa.com`         | `admin123`          |
+| **كابتن التوصيل (Delivery Courier)**     | `courier@chefaa.com`            | `admin123`          |
+| **عميل تجريبي (Customer)**                 | `user@gmail.com`                | `123456`            |

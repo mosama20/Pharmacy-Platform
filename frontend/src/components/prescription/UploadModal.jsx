@@ -253,11 +253,14 @@ export const UploadModal = ({ isOpen, onClose }) => {
         district: selectedDistrict,
         customerAddress: fullAddress,
         images: [uploadedImage.dataUrl],
+        imageUrl: uploadedImage.dataUrl,
         notes: notes.trim() || 'طلب روشتة مباشرة',
+        patientNotes: notes.trim() || 'طلب روشتة مباشرة',
         allowAlternatives,
       });
 
-      setSuccessResult(res.prescription);
+      const prescriptionData = res?.prescription || res;
+      setSuccessResult(prescriptionData);
     } catch (err) {
       setError(err.message || 'فشل إرسال الروشتة، يرجى المحاولة مرة أخرى.');
     } finally {
@@ -379,7 +382,7 @@ export const UploadModal = ({ isOpen, onClose }) => {
                 <p className="text-xs text-slate-600 dark:text-slate-300 max-w-sm mx-auto leading-relaxed">
                   رقم طلب الروشتة:{' '}
                   <strong className="font-mono text-emerald-600 text-sm">
-                    {successResult.id}
+                    {successResult.id || successResult.prescriptionNumber}
                   </strong>
                   <br />
                   يقوم الصيدلي المناوب بمراجعة الأدوية وتجهيز طلبك فوراً، وسنتصل بك على ({customerPhone}) لتأكيد التسعير وموعد التوصيل.

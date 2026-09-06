@@ -156,8 +156,38 @@ export const Footer = () => {
           </div>
         </div>
 
+        {/* Authorized Portals Bar */}
+        <div className="py-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-400">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="font-bold text-slate-300">بوابات الكوادر والشركاء المعتمدين:</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <a
+              href="/pharmacy"
+              className="hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium"
+            >
+              <span>بوابة الصيدلي والمراجعة</span>
+            </a>
+            <span className="text-slate-700">|</span>
+            <a
+              href="/delivery"
+              className="hover:text-amber-400 transition-colors flex items-center gap-1 font-medium"
+            >
+              <span>بوابة كابتن التوصيل</span>
+            </a>
+            <span className="text-slate-700">|</span>
+            <a
+              href="/admin"
+              className="hover:text-purple-400 transition-colors flex items-center gap-1 font-medium"
+            >
+              <span>لوحة الإدارة المركزية</span>
+            </a>
+          </div>
+        </div>
+
         {/* Copyright & Social */}
-        <div className="pt-8 border-t border-slate-800 text-center text-xs text-slate-500 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="pt-6 border-t border-slate-800 text-center text-xs text-slate-500 flex flex-col md:flex-row justify-between items-center gap-4">
           <p>© 2026 {settings.websiteName || 'الصيدلية الذكية'}. جميع الحقوق محفوظة.</p>
           <div className="flex items-center gap-4">
             <span className="hover:text-slate-400 cursor-pointer">الشروط والأحكام</span>

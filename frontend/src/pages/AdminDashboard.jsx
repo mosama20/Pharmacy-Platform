@@ -33,14 +33,15 @@ import { AnalyticsTab } from '../components/admin/tabs/AnalyticsTab';
 import { CourierView } from '../components/admin/tabs/CourierView';
 import { CmsTab } from '../components/admin/tabs/CmsTab';
 
-export const AdminDashboard = ({ onBackToStore }) => {
+export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
   const { user, login, logout, isAdmin, isPharmacist, isCourier, isSupport } = useAuth();
   const { refreshCmsData } = useCms();
 
-  // Tab state (defaults based on role)
+  // Tab state (defaults based on initialTab or role)
   const [activeTab, setActiveTab] = useState(() => {
-    if (user?.role === 'PHARMACIST') return 'prescriptions';
-    if (user?.role === 'DELIVERY') return 'courier';
+    if (initialTab) return initialTab;
+    if (portalType === 'pharmacy' || user?.role === 'PHARMACIST') return 'prescriptions';
+    if (portalType === 'delivery' || user?.role === 'DELIVERY') return 'courier';
     return 'orders';
   });
 
@@ -55,6 +56,7 @@ export const AdminDashboard = ({ onBackToStore }) => {
   const [staffList, setStaffList] = useState([]);
   const [refillsList, setRefillsList] = useState([]);
   const [customersList, setCustomersList] = useState([]);
+  const [allUsersList, setAllUsersList] = useState([]);
 
 
   // Filter & Search states
@@ -151,6 +153,7 @@ export const AdminDashboard = ({ onBackToStore }) => {
           couponsData,
           articlesData,
           settingsData,
+          allUsersData,
         ] = await Promise.all([
           api.getDashboardStats().catch(() => null),
           api.getAllOrders().catch(() => []),
@@ -164,6 +167,7 @@ export const AdminDashboard = ({ onBackToStore }) => {
           api.getPromoCodes().catch(() => []),
           api.getArticles().catch(() => []),
           api.getPlatformSettings().catch(() => null),
+          user?.role === 'ADMIN' ? api.getAllUsers().catch(() => []) : Promise.resolve([]),
         ]);
 
         setStats(statsData && !statsData.statusCode ? statsData : null);
@@ -171,6 +175,9 @@ export const AdminDashboard = ({ onBackToStore }) => {
         setPrescriptions(Array.isArray(rxData) ? rxData : []);
         setStaffList(Array.isArray(staffData) ? staffData : []);
         setCustomersList(Array.isArray(custData) ? custData : []);
+        if (Array.isArray(allUsersData) && allUsersData.length > 0) {
+          setAllUsersList(allUsersData);
+        }
         if (Array.isArray(prodsData)) {
           setProductsList(prodsData);
         }
@@ -436,6 +443,8 @@ export const AdminDashboard = ({ onBackToStore }) => {
   const couriers = Array.isArray(staffList) ? staffList.filter((s) => s.role === 'DELIVERY') : [];
   const pendingOrdersCount = orders.filter((o) => o.status === 'PENDING').length;
   const pendingRxCount = prescriptions.filter((p) => p.status === 'PENDING').length;
+  const activeDeliveriesCount = orders.filter((o) => o.status === 'OUT_FOR_DELIVERY').length;
+  const readyDeliveriesCount = orders.filter((o) => o.status === 'PREPARING').length;
 
   // Unauthenticated / Non-Staff Gateway
   if (!user || !['ADMIN', 'PHARMACIST', 'DELIVERY', 'SUPPORT'].includes(user?.role)) {
@@ -453,6 +462,8 @@ export const AdminDashboard = ({ onBackToStore }) => {
       onBackToStore={onBackToStore}
       pendingOrdersCount={pendingOrdersCount}
       pendingRxCount={pendingRxCount}
+      activeDeliveriesCount={activeDeliveriesCount}
+      readyDeliveriesCount={readyDeliveriesCount}
     >
       {/* 1. Orders Tab */}
       {activeTab === 'orders' && (
@@ -500,9 +511,13 @@ export const AdminDashboard = ({ onBackToStore }) => {
         <RefillsTab refills={refillsList} />
       )}
 
-      {/* 6. Customers Directory Tab */}
+      {/* 6. Customers Directory & Full User Control Center */}
       {activeTab === 'customers' && (
-        <CustomersTab customers={customersList} />
+        <CustomersTab
+          customers={customersList}
+          allUsers={allUsersList}
+          onRefreshUsers={() => fetchData(true)}
+        />
       )}
 
       {/* 7. Analytics & Revenue Tab */}
@@ -522,6 +537,7 @@ export const AdminDashboard = ({ onBackToStore }) => {
           onUpdateStatus={handleUpdateOrderStatus}
           onRefresh={fetchData}
           loading={loading}
+          onSelectOrder={(ord) => setSelectedOrderForDetail(ord)}
         />
       )}
 

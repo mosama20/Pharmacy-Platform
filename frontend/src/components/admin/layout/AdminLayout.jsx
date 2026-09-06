@@ -12,6 +12,8 @@ export const AdminLayout = ({
   onBackToStore,
   pendingOrdersCount = 0,
   pendingRxCount = 0,
+  activeDeliveriesCount = 0,
+  readyDeliveriesCount = 0,
   children,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -32,6 +34,8 @@ export const AdminLayout = ({
         onBackToStore={onBackToStore}
         pendingOrdersCount={pendingOrdersCount}
         pendingRxCount={pendingRxCount}
+        activeDeliveriesCount={activeDeliveriesCount}
+        readyDeliveriesCount={readyDeliveriesCount}
       />
 
       {/* 2. Main Wrapper with Dynamic Left/Right Margin for Collapsible Sidebar */}

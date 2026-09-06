@@ -168,19 +168,6 @@ export const Navbar = ({
             )}
           </button>
 
-          {/* Admin Dashboard Quick Access Button (Desktop) */}
-          <button
-            onClick={() => {
-              window.location.hash = 'admin';
-              setCurrentView('admin');
-            }}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 transition-all cursor-pointer text-xs font-bold shadow-xs"
-            title="لوحة التحكم المركزية"
-          >
-            <LayoutDashboard className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-            <span>لوحة التحكم</span>
-          </button>
-
           {/* User Account / Login */}
           <div className="relative">
             {user ? (
@@ -229,21 +216,28 @@ export const Navbar = ({
 
                     <div className="py-1">
                       {isAdminOrStaff && (
-                        <button
-                          onClick={() => {
-                            window.location.hash = 'admin';
-                            setCurrentView('admin');
-                            setIsUserMenuOpen(false);
-                          }}
+                        <a
+                          href={
+                            user?.role === 'ADMIN'
+                              ? '/admin'
+                              : user?.role === 'PHARMACIST'
+                              ? '/pharmacy'
+                              : user?.role === 'DELIVERY'
+                              ? '/delivery'
+                              : '/admin'
+                          }
+                          onClick={() => setIsUserMenuOpen(false)}
                           className="w-full text-right px-3 py-2 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 flex items-center gap-2"
                         >
                           <LayoutDashboard className="w-4 h-4 text-purple-600" />
                           <span>
-                            {isCourier
+                            {user?.role === 'DELIVERY'
                               ? 'بوابة الكابتن والتوصيل'
-                              : 'لوحة التحكم المركزية'}
+                              : user?.role === 'PHARMACIST'
+                              ? 'بوابة الصيدلي والمراجعة'
+                              : 'لوحة الإدارة المركزية'}
                           </span>
-                        </button>
+                        </a>
                       )}
 
                       <button

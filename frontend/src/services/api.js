@@ -1,8 +1,14 @@
 import fallbackProducts from '../data/fallbackProducts.json';
 
 const API_BASE = import.meta.env.VITE_API_BASE || (
-  typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && !window.location.hostname.includes('github.io')
-    ? `http://${window.location.hostname}:5000/api`
+  typeof window !== 'undefined'
+    ? (window.location.port === '5173'
+        ? `http://${window.location.hostname || 'localhost'}:5000/api`
+        : (window.location.hostname && window.location.hostname.includes('github.io')
+            ? ''
+            : (window.location.port === '' || window.location.port === '80'
+                ? '/api'
+                : `http://${window.location.hostname || 'localhost'}:5000/api`)))
     : 'http://localhost:5000/api'
 );
 
@@ -234,38 +240,79 @@ export const api = {
 
   // Prescriptions
   uploadPrescription: async (rxData) => {
+    const rawImages = Array.isArray(rxData.images) && rxData.images.length > 0
+      ? rxData.images
+      : (rxData.imageUrl ? [rxData.imageUrl] : []);
+    const primaryImg = rxData.imageUrl || rawImages[0] || '';
+
+    const payload = {
+      ...rxData,
+      images: rawImages,
+      imageUrl: primaryImg,
+      patientNotes: rxData.patientNotes || rxData.notes || '',
+    };
+
     if (isGitHubPages && !import.meta.env.VITE_API_BASE) {
-      return {
-        id: `rx_demo_${Date.now()}`,
+      const demoId = `rx_demo_${Date.now()}`;
+      const demoRx = {
+        id: demoId,
         prescriptionNumber: `RX-DEMO-${Math.floor(1000 + Math.random() * 9000)}`,
-        status: 'RECEIVED',
-        patientName: rxData.patientName || 'المريض',
-        patientPhone: rxData.patientPhone || '01000000000',
+        status: 'PENDING',
+        customerId: rxData.customerId || 'guest_user',
+        customerName: rxData.customerName || rxData.patientName || 'المريض',
+        customerPhone: rxData.customerPhone || rxData.patientPhone || '01000000000',
+        customerAddress: rxData.customerAddress || 'القاهرة',
         notes: rxData.notes || '',
+        patientNotes: rxData.notes || '',
+        images: rawImages,
+        imageUrl: primaryImg,
         createdAt: new Date().toISOString(),
+      };
+      try {
+        const local = JSON.parse(localStorage.getItem('chefaa_demo_prescriptions') || '[]');
+        localStorage.setItem('chefaa_demo_prescriptions', JSON.stringify([demoRx, ...local]));
+      } catch (_) {}
+      return {
         message: 'تم استلام الروشتة بنجاح (وضع المعاينة)',
+        prescription: demoRx,
+        ...demoRx,
       };
     }
+
     try {
       const res = await fetch(`${API_BASE}/prescriptions/upload`, {
         method: 'POST',
         headers: getHeaders(true),
-        body: JSON.stringify(rxData),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'فشل رفع الروشتة');
       return data;
     } catch (e) {
       console.warn('API error, simulating prescription upload for demo:', e);
-      return {
-        id: `rx_demo_${Date.now()}`,
+      const demoId = `rx_demo_${Date.now()}`;
+      const demoRx = {
+        id: demoId,
         prescriptionNumber: `RX-DEMO-${Math.floor(1000 + Math.random() * 9000)}`,
-        status: 'RECEIVED',
-        patientName: rxData.patientName || 'المريض',
-        patientPhone: rxData.patientPhone || '01000000000',
+        status: 'PENDING',
+        customerId: rxData.customerId || 'guest_user',
+        customerName: rxData.customerName || rxData.patientName || 'المريض',
+        customerPhone: rxData.customerPhone || rxData.patientPhone || '01000000000',
+        customerAddress: rxData.customerAddress || 'القاهرة',
         notes: rxData.notes || '',
+        patientNotes: rxData.notes || '',
+        images: rawImages,
+        imageUrl: primaryImg,
         createdAt: new Date().toISOString(),
+      };
+      try {
+        const local = JSON.parse(localStorage.getItem('chefaa_demo_prescriptions') || '[]');
+        localStorage.setItem('chefaa_demo_prescriptions', JSON.stringify([demoRx, ...local]));
+      } catch (_) {}
+      return {
         message: 'تم استلام الروشتة بنجاح (وضع المعاينة)',
+        prescription: demoRx,
+        ...demoRx,
       };
     }
   },
@@ -276,9 +323,25 @@ export const api = {
       const res = await fetch(`${API_BASE}/prescriptions${query}`, {
         headers: getHeaders(true),
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const list = await res.json();
+        return (Array.isArray(list) ? list : []).map((p) => ({
+          ...p,
+          imageUrl: p.imageUrl || (p.images && p.images[0]) || '',
+          patientNotes: p.patientNotes || p.notes || '',
+        }));
+      }
     } catch (_) {}
-    return [];
+
+    try {
+      const local = JSON.parse(localStorage.getItem('chefaa_demo_prescriptions') || '[]');
+      if (status && status !== 'ALL') {
+        return local.filter((p) => p.status === status);
+      }
+      return local;
+    } catch (_) {
+      return [];
+    }
   },
 
   getMyPrescriptions: async () => {
@@ -286,9 +349,21 @@ export const api = {
       const res = await fetch(`${API_BASE}/prescriptions/my`, {
         headers: getHeaders(true),
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const list = await res.json();
+        return (Array.isArray(list) ? list : []).map((p) => ({
+          ...p,
+          imageUrl: p.imageUrl || (p.images && p.images[0]) || '',
+          patientNotes: p.patientNotes || p.notes || '',
+        }));
+      }
     } catch (_) {}
-    return [];
+
+    try {
+      return JSON.parse(localStorage.getItem('chefaa_demo_prescriptions') || '[]');
+    } catch (_) {
+      return [];
+    }
   },
 
   quotePrescription: async (id, quoteData) => {
@@ -457,7 +532,18 @@ export const api = {
     return data;
   },
 
-  // Customers
+  // Users & Account Control (Admin Suite)
+  getAllUsers: async ({ role, status, q } = {}) => {
+    const params = new URLSearchParams();
+    if (role && role !== 'ALL') params.append('role', role);
+    if (status && status !== 'ALL') params.append('status', status);
+    if (q) params.append('q', q);
+    const res = await fetch(`${API_BASE}/users?${params.toString()}`, {
+      headers: getHeaders(true),
+    });
+    return res.json();
+  },
+
   getAllCustomers: async (search) => {
     const query = search ? `?q=${search}` : '';
     const res = await fetch(`${API_BASE}/users/customers${query}`, {
@@ -473,6 +559,38 @@ export const api = {
       body: JSON.stringify({ status }),
     });
     return res.json();
+  },
+
+  updateUserRole: async (id, role) => {
+    const res = await fetch(`${API_BASE}/users/${id}/role`, {
+      method: 'PATCH',
+      headers: getHeaders(true),
+      body: JSON.stringify({ role }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل تحديث صلاحية الحساب');
+    return data;
+  },
+
+  resetUserPassword: async (id, password) => {
+    const res = await fetch(`${API_BASE}/users/${id}/reset-password`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل إعادة تعيين كلمة المرور');
+    return data;
+  },
+
+  deleteUser: async (id) => {
+    const res = await fetch(`${API_BASE}/users/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(true),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل حذف الحساب');
+    return data;
   },
 
   // Refill

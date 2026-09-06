@@ -52,7 +52,9 @@ export interface Prescription {
   governorate: string;
   district: string;
   images: string[];
+  imageUrl?: string;
   notes?: string;
+  patientNotes?: string;
   allowAlternatives: boolean;
   hasInsurance: boolean;
   insuranceCompany?: string;
@@ -395,7 +397,11 @@ export class DbService {
         const data = JSON.parse(raw);
         this.users = data.users || [];
         this.products = data.products || [];
-        this.prescriptions = data.prescriptions || [];
+        this.prescriptions = (data.prescriptions || []).map((p: any) => ({
+          ...p,
+          imageUrl: p.imageUrl || (p.images && p.images[0]) || '',
+          patientNotes: p.patientNotes || p.notes || '',
+        }));
         this.orders = data.orders || [];
         this.refills = data.refills || [];
         this.banners = data.banners || [];
@@ -577,7 +583,9 @@ export class DbService {
         governorate: 'القاهرة',
         district: 'المعادي',
         images: ['https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80'],
+        imageUrl: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80',
         notes: 'يرجى مراجعة بديل الأوجمنتين إذا لم يتوفر، وإضافة شريط بنادول إكسترا.',
+        patientNotes: 'يرجى مراجعة بديل الأوجمنتين إذا لم يتوفر، وإضافة شريط بنادول إكسترا.',
         allowAlternatives: true,
         hasInsurance: false,
         status: 'PENDING',
@@ -593,7 +601,9 @@ export class DbService {
         governorate: 'القاهرة',
         district: 'مدينة نصر',
         images: ['https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80'],
+        imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80',
         notes: 'عندي تأمين أكسا كير رقم 448920.',
+        patientNotes: 'عندي تأمين أكسا كير رقم 448920.',
         allowAlternatives: false,
         hasInsurance: true,
         insuranceCompany: 'AXA Health Insurance',
