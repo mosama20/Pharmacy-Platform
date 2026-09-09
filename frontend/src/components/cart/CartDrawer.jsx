@@ -11,9 +11,11 @@ import {
   CheckCircle2,
   Tag,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 
-export const CartDrawer = ({ onOpenCheckout }) => {
+export const CartDrawer = ({ onOpenCheckout, onOpenCart }) => {
+  const navigate = useNavigate();
   const {
     cartItems,
     isCartOpen,
@@ -221,17 +223,31 @@ export const CartDrawer = ({ onOpenCheckout }) => {
                 </div>
               </div>
 
-              {/* Checkout Button */}
-              <button
-                onClick={() => {
-                  setIsCartOpen(false);
-                  onOpenCheckout();
-                }}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs md:text-sm shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>متابعة إتمام الطلب</span>
-                <ArrowLeft className="w-4 h-4" />
-              </button>
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-1">
+                <button
+                  onClick={() => {
+                    setIsCartOpen(false);
+                    if (onOpenCheckout) onOpenCheckout();
+                    else navigate('/checkout');
+                  }}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs md:text-sm shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>متابعة إتمام الطلب</span>
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsCartOpen(false);
+                    if (onOpenCart) onOpenCart();
+                    else navigate('/cart');
+                  }}
+                  className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-colors cursor-pointer text-center"
+                >
+                  عرض سلة المشتريات بالكامل
+                </button>
+              </div>
             </div>
           )}
         </div>

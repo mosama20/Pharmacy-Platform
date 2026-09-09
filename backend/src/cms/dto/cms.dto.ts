@@ -35,8 +35,8 @@ export class CreateBannerDto {
   @IsNotEmpty()
   ctaText: string;
 
-  @IsEnum(['upload', 'refill', 'category', 'link'])
-  actionType: 'upload' | 'refill' | 'category' | 'link';
+  @IsEnum(['upload', 'refill', 'category', 'link', 'url'])
+  actionType: 'upload' | 'refill' | 'category' | 'link' | 'url';
 
   @IsString()
   @IsOptional()
@@ -47,10 +47,12 @@ export class CreateBannerDto {
   img: string;
 
   @IsNumber()
-  order: number;
+  @IsOptional()
+  order?: number;
 
   @IsBoolean()
-  isActive: boolean;
+  @IsOptional()
+  isActive?: boolean;
 }
 
 export class UpdateBannerDto {
@@ -78,9 +80,9 @@ export class UpdateBannerDto {
   @IsOptional()
   ctaText?: string;
 
-  @IsEnum(['upload', 'refill', 'category', 'link'])
+  @IsEnum(['upload', 'refill', 'category', 'link', 'url'])
   @IsOptional()
-  actionType?: 'upload' | 'refill' | 'category' | 'link';
+  actionType?: 'upload' | 'refill' | 'category' | 'link' | 'url';
 
   @IsString()
   @IsOptional()
@@ -313,7 +315,43 @@ export class UpdateSettingsDto {
 
   @IsString()
   @IsOptional()
+  brandTagline?: string;
+
+  @IsString()
+  @IsOptional()
   websiteSlogan?: string;
+
+  @IsString()
+  @IsOptional()
+  brandDescription?: string;
+
+  @IsString()
+  @IsOptional()
+  logoText?: string;
+
+  @IsString()
+  @IsOptional()
+  logoUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  faviconUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  appIconUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  primaryColor?: string;
+
+  @IsString()
+  @IsOptional()
+  accentColor?: string;
+
+  @IsString()
+  @IsOptional()
+  hotline?: string;
 
   @IsString()
   @IsOptional()
@@ -329,11 +367,26 @@ export class UpdateSettingsDto {
 
   @IsString()
   @IsOptional()
+  supportEmail?: string;
+
+  @IsString()
+  @IsOptional()
   email?: string;
 
   @IsString()
   @IsOptional()
   address?: string;
+
+  @IsString()
+  @IsOptional()
+  workingHours?: string;
+
+  @IsString()
+  @IsOptional()
+  operatingHours?: string;
+
+  @IsOptional()
+  operatingCities?: string[];
 
   @IsNumber()
   @IsOptional()
@@ -348,6 +401,11 @@ export class UpdateSettingsDto {
   @IsNumber()
   @IsOptional()
   @Min(0)
+  estimatedDeliveryMin?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
   taxPercentage?: number;
 
   @IsBoolean()
@@ -356,7 +414,27 @@ export class UpdateSettingsDto {
 
   @IsString()
   @IsOptional()
-  operatingHours?: string;
+  announcementText?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isAnnouncementActive?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  allowPrescriptionUpload?: boolean;
+
+  @IsString()
+  @IsOptional()
+  seoTitle?: string;
+
+  @IsString()
+  @IsOptional()
+  seoDescription?: string;
+
+  @IsString()
+  @IsOptional()
+  seoKeywords?: string;
 
   @IsOptional()
   socialLinks?: any;
@@ -366,4 +444,50 @@ export class UpdateSettingsDto {
 
   @IsOptional()
   footerColumns?: any;
+
+  @IsOptional()
+  mediaLibrary?: any;
+
+  @IsOptional()
+  quickCards?: any;
+
+  @IsString()
+  @IsOptional()
+  telegramBotToken?: string;
+
+  @IsString()
+  @IsOptional()
+  telegramChatId?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  telegramNotificationsEnabled?: boolean;
+
+  @IsString()
+  @IsOptional()
+  smtpHost?: string;
+
+  @IsNumber()
+  @IsOptional()
+  smtpPort?: number;
+
+  @IsString()
+  @IsOptional()
+  smtpUser?: string;
+
+  @IsString()
+  @IsOptional()
+  smtpPass?: string;
+
+  @IsString()
+  @IsOptional()
+  smtpFrom?: string;
+
+  @IsString()
+  @IsOptional()
+  adminNotificationEmail?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  emailNotificationsEnabled?: boolean;
 }

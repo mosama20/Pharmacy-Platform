@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Navbar } from '../components/layout/Navbar';
 import { SubHeader } from '../components/layout/SubHeader';
 import { Footer } from '../components/layout/Footer';
-import { Home } from './Home';
 import { LocationPickerModal } from '../components/location/LocationPickerModal';
 import { AuthModal } from '../components/auth/AuthModal';
 import { UploadModal } from '../components/prescription/UploadModal';
 import { SearchModal } from '../components/search/SearchModal';
 import { RefillModal } from '../components/refill/RefillModal';
+import { InsuranceContractModal } from '../components/insurance/InsuranceContractModal';
 import { CartDrawer } from '../components/cart/CartDrawer';
-import { CheckoutModal } from '../components/checkout/CheckoutModal';
-import { ProductDetailModal } from '../components/products/ProductDetailModal';
+import { OrderTrackingModal } from '../components/tracking/OrderTrackingModal';
 import { MobileBottomNav } from '../components/layout/MobileBottomNav';
 
 export const StorefrontPortal = ({ darkMode, setDarkMode }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [selectedCategory, setSelectedCategory] = useState('الكل');
 
   // Modals state
@@ -21,8 +23,21 @@ export const StorefrontPortal = ({ darkMode, setDarkMode }) => {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isRefillOpen, setIsRefillOpen] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [quickViewProduct, setQuickViewProduct] = useState(null);
+  const [isInsuranceOpen, setIsInsuranceOpen] = useState(false);
+  const [isTrackingOpen, setIsTrackingOpen] = useState(false);
+  const [trackingOrderId, setTrackingOrderId] = useState('');
+
+  const handleOpenTracking = (orderId) => {
+    setTrackingOrderId(orderId || '');
+    setIsTrackingOpen(true);
+  };
+
+  const handleSelectCategory = (cat) => {
+    setSelectedCategory(cat);
+    if (location.pathname !== '/') {
+      navigate('/');
+    }
+  };
 
   // Keyboard shortcut for search
   useEffect(() => {
@@ -44,26 +59,31 @@ export const StorefrontPortal = ({ darkMode, setDarkMode }) => {
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenRefill={() => setIsRefillOpen(true)}
+        onOpenInsurance={() => setIsInsuranceOpen(true)}
+        onOpenTracking={handleOpenTracking}
+        onOpenCart={() => navigate('/cart')}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
       />
 
-      {/* Sub Header / Category Bar */}
+      {/* Sub Header / Category Bar (Minimalist & Calm) */}
       <SubHeader
         selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-        onOpenRefill={() => setIsRefillOpen(true)}
+        onSelectCategory={handleSelectCategory}
       />
 
-      {/* Main Storefront */}
+      {/* Main Storefront Router Outlet */}
       <main className="flex-1">
-        <Home
-          onOpenUpload={() => setIsUploadOpen(true)}
-          onOpenRefill={() => setIsRefillOpen(true)}
-          onOpenSearch={() => setIsSearchOpen(true)}
-          onQuickView={(prod) => setQuickViewProduct(prod)}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
+        <Outlet
+          context={{
+            selectedCategory,
+            setSelectedCategory: handleSelectCategory,
+            onOpenUpload: () => setIsUploadOpen(true),
+            onOpenRefill: () => setIsRefillOpen(true),
+            onOpenInsurance: () => setIsInsuranceOpen(true),
+            onOpenSearch: () => setIsSearchOpen(true),
+            handleOpenTracking,
+          }}
         />
       </main>
 
@@ -74,11 +94,12 @@ export const StorefrontPortal = ({ darkMode, setDarkMode }) => {
       <MobileBottomNav
         onOpenUpload={() => setIsUploadOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
-        onOpenCategories={() => {
-          const el = document.getElementById('categories-bar');
-          if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }}
+        onOpenCart={() => navigate('/cart')}
+        onOpenCategories={() => navigate('/categories')}
         onScrollToTop={() => {
+          if (location.pathname !== '/') {
+            navigate('/');
+          }
           window.scrollTo({ top: 0, behavior: 'smooth' });
           setSelectedCategory('الكل');
         }}
@@ -92,19 +113,24 @@ export const StorefrontPortal = ({ darkMode, setDarkMode }) => {
       <SearchModal
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
-        onSelectProduct={(prod) => setQuickViewProduct(prod)}
+        onSelectProduct={(prod) => {
+          setIsSearchOpen(false);
+          navigate(`/product/${prod.id}`);
+        }}
       />
       <RefillModal isOpen={isRefillOpen} onClose={() => setIsRefillOpen(false)} />
-      <CartDrawer onOpenCheckout={() => setIsCheckoutOpen(true)} />
-      <CheckoutModal
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
+      <InsuranceContractModal
+        isOpen={isInsuranceOpen}
+        onClose={() => setIsInsuranceOpen(false)}
       />
-      <ProductDetailModal
-        product={quickViewProduct}
-        onClose={() => setQuickViewProduct(null)}
-        onSelectAlternative={(alt) => setQuickViewProduct(alt)}
-        onBuyNow={() => setIsCheckoutOpen(true)}
+      <CartDrawer
+        onOpenCheckout={() => navigate('/checkout')}
+        onOpenCart={() => navigate('/cart')}
+      />
+      <OrderTrackingModal
+        isOpen={isTrackingOpen}
+        onClose={() => setIsTrackingOpen(false)}
+        initialOrderId={trackingOrderId}
       />
     </div>
   );

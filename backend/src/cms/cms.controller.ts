@@ -8,6 +8,8 @@ import {
   Param,
   Query,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { CmsService } from './cms.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -165,6 +167,7 @@ export class CmsController {
   @Put('settings')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
+  @UsePipes(new ValidationPipe({ whitelist: false, transform: true, forbidNonWhitelisted: false }))
   updateSettings(@Body() body: UpdateSettingsDto) {
     return this.cmsService.updateSettings(body);
   }

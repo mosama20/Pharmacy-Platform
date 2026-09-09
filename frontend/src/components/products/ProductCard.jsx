@@ -8,9 +8,11 @@ import {
   Eye,
   Sparkles,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 
 export const ProductCard = ({ product, onQuickView }) => {
+  const navigate = useNavigate();
   const { addToCart } = useCart();
   const [isAdded, setIsAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -22,10 +24,18 @@ export const ProductCard = ({ product, onQuickView }) => {
     setTimeout(() => setIsAdded(false), 1500);
   };
 
+  const handleClick = () => {
+    if (onQuickView) {
+      onQuickView(product);
+    } else {
+      navigate(`/product/${product.id}`);
+    }
+  };
+
   return (
     <div
-      onClick={() => onQuickView(product)}
-      className="group relative rounded-2xl sm:rounded-3xl glass-card overflow-hidden border border-slate-200/90 dark:border-slate-800 hover:border-emerald-500/80 dark:hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between cursor-pointer bg-white dark:bg-slate-900"
+      onClick={handleClick}
+      className="group relative rounded-2xl sm:rounded-3xl glass-card overflow-hidden border border-slate-200/90 dark:border-slate-800 hover:border-emerald-500/80 dark:hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between cursor-pointer bg-white dark:bg-slate-900 select-none touch-manipulation"
     >
       {/* Badges Bar */}
       <div className="absolute top-2 right-2 left-2 sm:top-3 sm:right-3 sm:left-3 z-10 flex items-center justify-between pointer-events-none">

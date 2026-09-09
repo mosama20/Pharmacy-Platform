@@ -27,6 +27,7 @@ enum PrescriptionStatus {
   QUOTED
   ACCEPTED
   REJECTED
+  CANCELLED
   ORDER_CREATED
 }
 
@@ -219,6 +220,7 @@ model Prescription {
   insuranceCompany    String?
   insuranceCardNumber String?
   status              PrescriptionStatus @default(PENDING)
+  cancellationReason  String?
   pharmacistNotes     String?
   reviewedBy          String?
   quotedItems         Json?

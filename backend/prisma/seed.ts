@@ -1,5 +1,6 @@
 import { PrismaClient, Role, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import * as process from 'node:process';
 
 const prisma = new PrismaClient();
 
@@ -91,6 +92,92 @@ async function main() {
       points: 150,
       walletBalance: 200,
       city: 'المعادي',
+    },
+  });
+
+  // Also seed legacy/quick-fill demo accounts so frontend quick-fill buttons work seamlessly
+  const demoHash = await bcrypt.hash('admin123', 10);
+  const demoUserHash = await bcrypt.hash('123456', 10);
+
+  await prisma.user.upsert({
+    where: { id: 'usr_admin_demo' },
+    update: {
+      email: 'admin@pharmacy.com',
+      password: demoHash,
+      role: Role.ADMIN,
+      status: UserStatus.ACTIVE,
+    },
+    create: {
+      id: 'usr_admin_demo',
+      name: 'د. أيمن مسعد (المدير الإداري)',
+      email: 'admin@pharmacy.com',
+      phone: '01012345678',
+      password: demoHash,
+      role: Role.ADMIN,
+      status: UserStatus.ACTIVE,
+      city: 'القاهرة',
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { id: 'usr_pharm_demo' },
+    update: {
+      email: 'pharmacist@pharmacy.com',
+      password: demoHash,
+      role: Role.PHARMACIST,
+      status: UserStatus.ACTIVE,
+    },
+    create: {
+      id: 'usr_pharm_demo',
+      name: 'د. سارة محمود (صيدلانية)',
+      email: 'pharmacist@pharmacy.com',
+      phone: '01123456789',
+      password: demoHash,
+      role: Role.PHARMACIST,
+      status: UserStatus.ACTIVE,
+      city: 'الجيزة',
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { id: 'usr_cour_demo' },
+    update: {
+      email: 'courier@pharmacy.com',
+      password: demoHash,
+      role: Role.DELIVERY,
+      status: UserStatus.ACTIVE,
+    },
+    create: {
+      id: 'usr_cour_demo',
+      name: 'كابتن أحمد علي',
+      email: 'courier@pharmacy.com',
+      phone: '01234567890',
+      password: demoHash,
+      role: Role.DELIVERY,
+      status: UserStatus.ACTIVE,
+      city: 'القاهرة',
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { id: 'usr_user_demo' },
+    update: {
+      email: 'user@gmail.com',
+      password: demoUserHash,
+      role: Role.CUSTOMER,
+      status: UserStatus.ACTIVE,
+    },
+    create: {
+      id: 'usr_user_demo',
+      name: 'محمد إبراهيم حسن',
+      email: 'user@gmail.com',
+      phone: '01005556677',
+      password: demoUserHash,
+      role: Role.CUSTOMER,
+      status: UserStatus.ACTIVE,
+      points: 450,
+      walletBalance: 120,
+      city: 'القاهرة',
     },
   });
 

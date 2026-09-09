@@ -1,5 +1,6 @@
 import React from 'react';
 import { Save, Globe, Palette, Sparkles } from 'lucide-react';
+import { ImageUploadInput } from '../../common/ImageUploadInput';
 
 export const CmsIdentitySection = ({
   settingsForm,
@@ -62,44 +63,40 @@ export const CmsIdentitySection = ({
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              الحرف الرمزي للشعار (Text Logo):
-            </label>
-            <input
-              type="text"
-              value={settingsForm.logoText}
-              onChange={(e) => setSettingsForm({ ...settingsForm, logoText: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-center font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              رابط صورة الشعار (Logo URL):
-            </label>
-            <input
-              type="url"
-              placeholder="https://.../logo.png"
+            <ImageUploadInput
+              label="شعار المنصة الرسمي (Website Logo):"
+              placeholder="ارفع شعار الصيدلية من جهازك بصيغة PNG أو WEBP"
               value={settingsForm.logoUrl}
-              onChange={(e) => setSettingsForm({ ...settingsForm, logoUrl: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono focus:outline-none focus:border-emerald-500"
+              onChange={(url) => setSettingsForm({ ...settingsForm, logoUrl: url })}
+              folder="logo"
+              previewHeight="h-20"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              أيقونة المتصفح (Favicon URL):
-            </label>
-            <input
-              type="url"
-              placeholder="https://.../favicon.ico"
+            <ImageUploadInput
+              label="أيقونة المتصفح المصغرة (Favicon):"
+              placeholder="ارفع أيقونة الموقع المصغرة (.ico أو .png أو .svg)"
               value={settingsForm.faviconUrl}
-              onChange={(e) => setSettingsForm({ ...settingsForm, faviconUrl: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono focus:outline-none focus:border-emerald-500"
+              onChange={(url) => setSettingsForm({ ...settingsForm, faviconUrl: url })}
+              folder="favicon"
+              previewHeight="h-14"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            الحرف الرمزي للشعار النصي (Text Logo - يظهر إذا تعذر تحميل الصورة):
+          </label>
+          <input
+            type="text"
+            value={settingsForm.logoText}
+            onChange={(e) => setSettingsForm({ ...settingsForm, logoText: e.target.value })}
+            className="w-full sm:w-64 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+          />
         </div>
 
         <div className="pt-2 flex items-center justify-end">

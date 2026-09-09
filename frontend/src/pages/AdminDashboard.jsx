@@ -35,7 +35,7 @@ import { CmsTab } from '../components/admin/tabs/CmsTab';
 
 export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
   const { user, login, logout, isAdmin, isPharmacist, isCourier, isSupport } = useAuth();
-  const { refreshCmsData } = useCms();
+  const { refreshCmsData, saveSettings } = useCms();
 
   // Tab state (defaults based on initialTab or role)
   const [activeTab, setActiveTab] = useState(() => {
@@ -81,6 +81,7 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
   const [isNewStaffModalOpen, setIsNewStaffModalOpen] = useState(false);
   const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
   const [isNewBannerModalOpen, setIsNewBannerModalOpen] = useState(false);
+  const [editingBanner, setEditingBanner] = useState(null);
   const [isNewCouponModalOpen, setIsNewCouponModalOpen] = useState(false);
   const [isNewArticleModalOpen, setIsNewArticleModalOpen] = useState(false);
   const [isNewCategoryModalOpen, setIsNewCategoryModalOpen] = useState(false);
@@ -124,6 +125,17 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
     navigationMenu: [],
     footerColumns: [],
     mediaLibrary: [],
+    quickCards: [],
+    telegramBotToken: '8816040899:AAHn5t7WDimz6JudP27PccRPlwFuj8aDMHc',
+    telegramChatId: '8800720269',
+    telegramNotificationsEnabled: true,
+    smtpHost: '',
+    smtpPort: 587,
+    smtpUser: '',
+    smtpPass: '',
+    smtpFrom: 'صيدلية د. شيماء <orders@drshimaa.com>',
+    adminNotificationEmail: 'admin@drshimaa.com',
+    emailNotificationsEnabled: true,
   });
 
   const fetchData = async (forceInitSettings = false) => {
@@ -226,6 +238,17 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
               navigationMenu: settingsData.navigationMenu || [],
               footerColumns: settingsData.footerColumns || [],
               mediaLibrary: settingsData.mediaLibrary || [],
+              quickCards: settingsData.quickCards || [],
+              telegramBotToken: settingsData.telegramBotToken || '8816040899:AAHn5t7WDimz6JudP27PccRPlwFuj8aDMHc',
+              telegramChatId: settingsData.telegramChatId || '8800720269',
+              telegramNotificationsEnabled: settingsData.telegramNotificationsEnabled ?? true,
+              smtpHost: settingsData.smtpHost || '',
+              smtpPort: settingsData.smtpPort || 587,
+              smtpUser: settingsData.smtpUser || '',
+              smtpPass: settingsData.smtpPass || '',
+              smtpFrom: settingsData.smtpFrom || 'صيدلية د. شيماء <orders@drshimaa.com>',
+              adminNotificationEmail: settingsData.adminNotificationEmail || 'admin@drshimaa.com',
+              emailNotificationsEnabled: settingsData.emailNotificationsEnabled ?? true,
             });
           }
         }
@@ -291,7 +314,7 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
     }
   };
 
-  // Prescription Quotation
+  // Prescription Quotation & Status
   const handleSubmitQuote = async (rxId, quoteData) => {
     try {
       await api.quotePrescription(rxId, quoteData);
@@ -303,15 +326,44 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
     }
   };
 
-  // CMS Handlers
-  const handleCreateBanner = async (bannerData) => {
+  const handleUpdateRxStatus = async (rxId, status, cancellationReason) => {
     try {
-      await api.createBanner(bannerData);
-      alert('تمت إضافة البانر بنجاح للموقع!');
+      await api.updatePrescriptionStatus(rxId, status, cancellationReason);
+      fetchData();
+      if (selectedRxForReview?.id === rxId) {
+        setSelectedRxForReview(null);
+      }
+    } catch (err) {
+      alert('فشل تحديث حالة الروشتة: ' + err.message);
+    }
+  };
+
+  const handleUpdateProductStock = async (productId, newStock) => {
+    try {
+      await api.updateProduct(productId, { stock: Math.max(0, Number(newStock)) });
+      setProductsList((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, stock: Math.max(0, Number(newStock)) } : p))
+      );
+    } catch (err) {
+      alert('فشل تحديث رصيد المخزون: ' + err.message);
+    }
+  };
+
+  // CMS Handlers
+  const handleSaveBanner = async (bannerData, bannerId) => {
+    try {
+      if (bannerId) {
+        await api.updateBanner(bannerId, bannerData);
+        alert('تم تعديل وحفظ بيانات البانر بنجاح!');
+      } else {
+        await api.createBanner(bannerData);
+        alert('تمت إضافة البانر بنجاح للموقع!');
+      }
+      setEditingBanner(null);
       fetchData();
       if (typeof refreshCmsData === 'function') refreshCmsData();
     } catch (err) {
-      alert('فشل إضافة البانر: ' + err.message);
+      alert('فشل حفظ البانر: ' + err.message);
     }
   };
 
@@ -429,12 +481,11 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
   };
 
   const handleSaveSettings = async (e) => {
-    e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
     try {
-      await api.updatePlatformSettings(settingsForm);
-      alert('تم حفظ إعدادات المنصة والهوية البصرية بنجاح!');
+      await saveSettings(settingsForm);
+      alert('تم حفظ إعدادات المنصة بنجاح وتحديث المتجر بالكامل!');
       fetchData(true);
-      if (typeof refreshCmsData === 'function') refreshCmsData();
     } catch (err) {
       alert('فشل حفظ الإعدادات: ' + err.message);
     }
@@ -484,6 +535,7 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
         <PrescriptionsTab
           prescriptions={prescriptions}
           onSelectRxForReview={(rx) => setSelectedRxForReview(rx)}
+          onUpdateRxStatus={handleUpdateRxStatus}
         />
       )}
 
@@ -493,6 +545,7 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
           products={productsList}
           onOpenNewProductModal={() => setIsNewProductModalOpen(true)}
           onOpenExcelImportModal={() => setIsExcelImportModalOpen(true)}
+          onUpdateStock={handleUpdateProductStock}
           onRefresh={() => fetchData(true)}
         />
       )}
@@ -553,7 +606,14 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
           cmsCategories={cmsCategories}
           cmsPromoCodes={cmsPromoCodes}
           cmsArticles={cmsArticles}
-          onOpenNewBannerModal={() => setIsNewBannerModalOpen(true)}
+          onOpenNewBannerModal={() => {
+            setEditingBanner(null);
+            setIsNewBannerModalOpen(true);
+          }}
+          onEditBanner={(banner) => {
+            setEditingBanner(banner);
+            setIsNewBannerModalOpen(true);
+          }}
           onDeleteBanner={handleDeleteBanner}
           onOpenNewCategoryModal={() => setIsNewCategoryModalOpen(true)}
           onDeleteCategory={handleDeleteCategory}
@@ -579,8 +639,10 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
       {selectedRxForReview && (
         <PrescriptionReviewModal
           rx={selectedRxForReview}
+          products={productsList}
           onClose={() => setSelectedRxForReview(null)}
           onSubmitQuote={handleSubmitQuote}
+          onUpdateStatus={handleUpdateRxStatus}
         />
       )}
 
@@ -598,8 +660,12 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
 
       <NewBannerModal
         isOpen={isNewBannerModalOpen}
-        onClose={() => setIsNewBannerModalOpen(false)}
-        onSubmit={handleCreateBanner}
+        onClose={() => {
+          setIsNewBannerModalOpen(false);
+          setEditingBanner(null);
+        }}
+        onSubmit={handleSaveBanner}
+        bannerToEdit={editingBanner}
       />
 
       <NewCouponModal

@@ -13,17 +13,23 @@ import { v4 as uuidv4 } from 'uuid';
 import { validateUploadedImage } from '../common/file-validator.util';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  PENDING: ['UNDER_REVIEW', 'REJECTED'],
-  UNDER_REVIEW: ['QUOTED', 'REJECTED', 'PENDING'],
-  QUOTED: ['ACCEPTED', 'REJECTED'],
-  ACCEPTED: ['ORDER_CREATED', 'REJECTED'],
-  REJECTED: [],
+  PENDING: ['UNDER_REVIEW', 'REJECTED', 'CANCELLED'],
+  UNDER_REVIEW: ['QUOTED', 'REJECTED', 'CANCELLED', 'PENDING'],
+  QUOTED: ['ACCEPTED', 'REJECTED', 'CANCELLED', 'UNDER_REVIEW'],
+  ACCEPTED: ['ORDER_CREATED', 'REJECTED', 'CANCELLED', 'QUOTED'],
+  REJECTED: ['PENDING', 'UNDER_REVIEW', 'CANCELLED'],
+  CANCELLED: ['PENDING', 'UNDER_REVIEW', 'QUOTED'],
   ORDER_CREATED: [],
 };
 
+import { NotificationsService } from '../notifications/notifications.service';
+
 @Injectable()
 export class PrescriptionsService {
-  constructor(private readonly db: DbService) {}
+  constructor(
+    private readonly db: DbService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async findAll(status?: string) {
     let list = [...this.db.prescriptions];
@@ -96,6 +102,7 @@ export class PrescriptionsService {
       customerId: dto.customerId || 'guest_user',
       customerName: dto.customerName || 'عميل مجهول',
       customerPhone: dto.customerPhone || '01000000000',
+      customerEmail: dto.customerEmail,
       customerAddress: dto.customerAddress || 'القاهرة',
       governorate: dto.governorate || 'القاهرة',
       district: dto.district || 'المعادي',
@@ -107,6 +114,21 @@ export class PrescriptionsService {
       hasInsurance: Boolean(dto.hasInsurance),
       insuranceCompany: dto.insuranceCompany || dto.insuranceProvider,
       insuranceCardNumber: dto.insuranceCardNumber || dto.insuranceNumber,
+      insuranceCardPhoto: dto.insuranceCardPhoto,
+      nationalId: dto.nationalId,
+      requestedItems: dto.requestedItems || [],
+      quotedItems: (dto.requestedItems && dto.requestedItems.length > 0)
+        ? dto.requestedItems.map((it) => ({
+            productId: it.productId,
+            productName: it.productName,
+            quantity: Number(it.quantity) || 1,
+            price: Number(it.price) || 0,
+            dosageNote: it.dosageNote || '',
+          }))
+        : undefined,
+      totalQuote: (dto.requestedItems && dto.requestedItems.length > 0)
+        ? dto.requestedItems.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0)
+        : undefined,
       status: 'PENDING',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -119,7 +141,7 @@ export class PrescriptionsService {
     this.db.prisma.prescription.create({
       data: {
         id: newRx.id,
-        customerId: newRx.customerId,
+        customerId: this.db.users.some((u) => u.id === newRx.customerId) ? newRx.customerId : null,
         customerName: newRx.customerName,
         customerPhone: newRx.customerPhone,
         customerAddress: newRx.customerAddress,
@@ -136,6 +158,9 @@ export class PrescriptionsService {
         status: newRx.status as any,
       },
     }).catch((e) => console.warn('Prisma create prescription sync warning:', e.message));
+
+    // Dispatch Telegram & Email notifications asynchronously
+    this.notificationsService.notifyNewPrescription(newRx);
 
     return {
       message: 'تم رفع الروشتة بنجاح وجاري مراجعتها بواسطة الصيدلي المناوب فوراً',
@@ -196,15 +221,18 @@ export class PrescriptionsService {
 
   async updateStatus(
     id: string,
-    status: 'PENDING' | 'UNDER_REVIEW' | 'QUOTED' | 'ACCEPTED' | 'REJECTED' | 'ORDER_CREATED',
+    status: 'PENDING' | 'UNDER_REVIEW' | 'QUOTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'ORDER_CREATED',
     user?: any,
+    cancellationReason?: string,
   ) {
     const rx = this.db.prescriptions.find((p) => p.id === id);
     if (!rx) throw new NotFoundException('الروشتة غير موجودة');
 
+    const isStaff = user && (user.role === 'ADMIN' || user.role === 'PHARMACIST');
+
     // Check state machine validity
     const allowedTransitions = VALID_TRANSITIONS[rx.status] || [];
-    if (!allowedTransitions.includes(status)) {
+    if (!isStaff && !allowedTransitions.includes(status)) {
       throw new BadRequestException(
         `لا يمكن تحويل حالة الروشتة من "${rx.status}" إلى "${status}". التحويلات المسموحة هي: ${allowedTransitions.join(', ') || 'لا يوجد'}`,
       );
@@ -215,15 +243,37 @@ export class PrescriptionsService {
         if (rx.customerId !== user.id) {
           throw new ForbiddenException('ليس لديك صلاحية لتعديل هذه الروشتة');
         }
-        if (!['ACCEPTED', 'REJECTED'].includes(status) || rx.status !== 'QUOTED') {
-          throw new ForbiddenException('العميل مصرح له فقط بقبول أو رفض الروشتة المسعرة');
+        if (!['ACCEPTED', 'REJECTED', 'CANCELLED'].includes(status) || rx.status !== 'QUOTED') {
+          throw new ForbiddenException('العميل مصرح له فقط بقبول أو إلغاء الروشتة المسعرة');
         }
-      } else if (user.role !== 'ADMIN' && user.role !== 'PHARMACIST') {
+      } else if (!isStaff) {
         throw new ForbiddenException('غير مصرح لك بتحديث حالة الروشتة');
       }
     }
 
     rx.status = status;
+    if (cancellationReason !== undefined) {
+      rx.cancellationReason = cancellationReason;
+    }
+
+    // Deduct stock if prescription reaches ORDER_CREATED
+    if (status === 'ORDER_CREATED' && Array.isArray(rx.quotedItems)) {
+      for (const item of rx.quotedItems) {
+        if (item.productId) {
+          const product = this.db.products.find((p) => p.id === item.productId);
+          if (product && product.stock !== undefined) {
+            product.stock = Math.max(0, product.stock - (Number(item.quantity) || 1));
+            this.db.prisma.product
+              .update({
+                where: { id: product.id },
+                data: { stock: product.stock },
+              })
+              .catch((e) => console.warn('Prisma product stock deduction warning:', e.message));
+          }
+        }
+      }
+    }
+
     rx.updatedAt = new Date().toISOString();
     this.db.persist();
 
@@ -231,7 +281,10 @@ export class PrescriptionsService {
     await this.db.prisma.prescription
       .update({
         where: { id: rx.id },
-        data: { status: rx.status as any },
+        data: {
+          status: rx.status as any,
+          cancellationReason: rx.cancellationReason || null,
+        },
       })
       .catch((e) => console.warn('Prisma rx status update error:', e));
 

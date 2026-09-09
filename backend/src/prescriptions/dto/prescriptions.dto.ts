@@ -17,6 +17,7 @@ export enum PrescriptionStatusEnum {
   QUOTED = 'QUOTED',
   ACCEPTED = 'ACCEPTED',
   REJECTED = 'REJECTED',
+  CANCELLED = 'CANCELLED',
   ORDER_CREATED = 'ORDER_CREATED',
 }
 
@@ -32,6 +33,10 @@ export class UploadPrescriptionDto {
   @IsString()
   @IsOptional()
   customerPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  customerEmail?: string;
 
   @IsString()
   @IsOptional()
@@ -88,6 +93,14 @@ export class UploadPrescriptionDto {
 
   @IsString()
   @IsOptional()
+  insuranceCardPhoto?: string;
+
+  @IsString()
+  @IsOptional()
+  nationalId?: string;
+
+  @IsString()
+  @IsOptional()
   insuranceProvider?: string;
 
   @IsString()
@@ -97,6 +110,16 @@ export class UploadPrescriptionDto {
   @IsNumber()
   @IsOptional()
   patientAge?: number;
+
+  @IsOptional()
+  requestedItems?: Array<{
+    productId?: string;
+    productName: string;
+    quantity: number;
+    price?: number;
+    dosageNote?: string;
+    image?: string;
+  }>;
 
   @IsOptional()
   deliveryAddress?: any;
@@ -138,4 +161,12 @@ export class QuotePrescriptionDto {
 export class UpdatePrescriptionStatusDto {
   @IsEnum(PrescriptionStatusEnum)
   status: PrescriptionStatusEnum;
+
+  @IsString()
+  @IsOptional()
+  cancellationReason?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }

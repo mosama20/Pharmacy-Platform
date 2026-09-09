@@ -78,6 +78,17 @@ export const ProductDetailModal = ({
     };
   }, [product]);
 
+  // Lock background body scroll on mobile/desktop when product modal is open
+  useEffect(() => {
+    if (product || detailedProduct) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [product, detailedProduct]);
+
   if (!product && !detailedProduct) return null;
 
   const currentProduct = detailedProduct || product;
@@ -99,8 +110,13 @@ export const ProductDetailModal = ({
   const subtitle = cleanSubtitle(currentProduct.nameEn, currentProduct.nameAr);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl md:max-w-3xl rounded-3xl glass-card shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[94vh] flex flex-col bg-white dark:bg-slate-900">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 overscroll-contain"
+    >
+      <div className="w-full max-w-2xl md:max-w-3xl rounded-3xl glass-card shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[92dvh] sm:max-h-[90vh] flex flex-col bg-white dark:bg-slate-900">
         {/* Sticky Top Header */}
         <div className="p-3.5 sm:p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0">
           <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold text-slate-500">
@@ -120,8 +136,14 @@ export const ProductDetailModal = ({
           </button>
         </div>
 
-        {/* Scrollable Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
+        {/* Scrollable Body with smooth mobile momentum */}
+        <div
+          className="p-4 sm:p-6 overflow-y-auto overscroll-contain space-y-5 flex-1 min-h-0"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-y',
+          }}
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
             {/* Image Container */}
             <div className="relative p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center min-h-[220px]">

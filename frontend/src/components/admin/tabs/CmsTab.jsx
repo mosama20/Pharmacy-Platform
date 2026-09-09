@@ -9,17 +9,23 @@ import {
   BookOpen,
   Sparkles,
   Search,
+  Send,
+  LayoutGrid,
+  ShieldCheck,
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { CmsIdentitySection } from '../cms/CmsIdentitySection';
 import { CmsBusinessSection } from '../cms/CmsBusinessSection';
 import { CmsSocialSection } from '../cms/CmsSocialSection';
+import { CmsNotificationsSection } from '../cms/CmsNotificationsSection';
 import { CmsBannersSection } from '../cms/CmsBannersSection';
+import { CmsQuickCardsSection } from '../cms/CmsQuickCardsSection';
 import { CmsCategoriesSection } from '../cms/CmsCategoriesSection';
 import { CmsCouponsSection } from '../cms/CmsCouponsSection';
 import { CmsArticlesSection } from '../cms/CmsArticlesSection';
 import { CmsMediaSection } from '../cms/CmsMediaSection';
 import { CmsSeoSection } from '../cms/CmsSeoSection';
+import { CmsInsuranceSection } from '../cms/CmsInsuranceSection';
 
 export const CmsTab = ({
   cmsActiveSubTab,
@@ -32,6 +38,7 @@ export const CmsTab = ({
   cmsPromoCodes,
   cmsArticles,
   onOpenNewBannerModal,
+  onEditBanner,
   onDeleteBanner,
   onOpenNewCategoryModal,
   onDeleteCategory,
@@ -45,12 +52,15 @@ export const CmsTab = ({
   const subTabs = [
     { id: 'identity', label: 'هوية المنصة واللوجو', icon: Globe },
     { id: 'business', label: 'بيانات التواصل والشحن', icon: Phone },
+    { id: 'notifications', label: 'إشعارات تليجرام والإيميل (Alerts)', icon: Send },
     { id: 'social', label: 'السوشيال ميديا', icon: Share2 },
     { id: 'banners', label: `السلايدر والبانرات (${cmsBanners.length})`, icon: ImageIcon },
+    { id: 'quickCards', label: `بطاقات الخدمات السريعة (${(settingsForm.quickCards || []).length || 4})`, icon: LayoutGrid },
     { id: 'categories', label: `الأقسام والتصنيفات (${cmsCategories.length})`, icon: Layers },
     { id: 'coupons', label: `أكواد الخصم (${cmsPromoCodes.length})`, icon: Tag },
     { id: 'articles', label: `المقالات والنصائح (${cmsArticles.length})`, icon: BookOpen },
     { id: 'media', label: `مكتبة الصور والوسائط (${(settingsForm.mediaLibrary || []).length})`, icon: Sparkles },
+    { id: 'insurance', label: `جهات التعاقد والتأمين (${(settingsForm.insuranceCompanies || []).length || 6})`, icon: ShieldCheck },
     { id: 'seo', label: 'محركات البحث (SEO)', icon: Search },
   ];
 
@@ -102,6 +112,14 @@ export const CmsTab = ({
           />
         )}
 
+        {cmsActiveSubTab === 'notifications' && (
+          <CmsNotificationsSection
+            settingsForm={settingsForm}
+            setSettingsForm={setSettingsForm}
+            onSave={onSaveSettings}
+          />
+        )}
+
         {cmsActiveSubTab === 'social' && (
           <CmsSocialSection
             settingsForm={settingsForm}
@@ -114,7 +132,16 @@ export const CmsTab = ({
           <CmsBannersSection
             banners={cmsBanners}
             onOpenNewBannerModal={onOpenNewBannerModal}
+            onEditBanner={onEditBanner}
             onDeleteBanner={onDeleteBanner}
+          />
+        )}
+
+        {cmsActiveSubTab === 'quickCards' && (
+          <CmsQuickCardsSection
+            settingsForm={settingsForm}
+            setSettingsForm={setSettingsForm}
+            onSave={onSaveSettings}
           />
         )}
 
@@ -147,6 +174,14 @@ export const CmsTab = ({
             mediaList={settingsForm.mediaLibrary || []}
             onOpenNewMediaModal={onOpenNewMediaModal}
             onDeleteMedia={onDeleteMedia}
+          />
+        )}
+
+        {cmsActiveSubTab === 'insurance' && (
+          <CmsInsuranceSection
+            settingsForm={settingsForm}
+            setSettingsForm={setSettingsForm}
+            onSave={onSaveSettings}
           />
         )}
 

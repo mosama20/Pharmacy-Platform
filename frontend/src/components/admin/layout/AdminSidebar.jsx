@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  LayoutDashboard,
   ShoppingBag,
   FileText,
   Package,
@@ -14,20 +13,6 @@ import {
   Store,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
-  Layers,
-  Image as ImageIcon,
-  Tag,
-  BookOpen,
-  Settings,
-  Search,
-  Globe,
-  Phone,
-  Share2,
-  PackageCheck,
-  CheckCircle2,
-  DollarSign,
-  MapPin,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useCms } from '../../../context/CmsContext';
@@ -58,10 +43,10 @@ export const AdminSidebar = ({
     if (setMobileOpen) setMobileOpen(false);
   };
 
-  // Nav items configuration grouped logically
+  // Nav items configuration grouped cleanly and logically
   const navGroups = [
     {
-      groupTitle: 'الرئيسية والعمليات',
+      groupTitle: 'العمليات والطلبات',
       items: [
         {
           id: 'orders',
@@ -73,7 +58,7 @@ export const AdminSidebar = ({
         },
         {
           id: 'prescriptions',
-          label: 'فحص وتسعير الروشتات',
+          label: 'تسعير وفحص الروشتات',
           icon: FileText,
           badge: pendingRxCount > 0 ? pendingRxCount : null,
           badgeColor: 'bg-amber-500 text-white',
@@ -81,9 +66,25 @@ export const AdminSidebar = ({
         },
         {
           id: 'products',
-          label: 'المخزون والأدوية',
+          label: 'الأدوية والمخزون',
           icon: Package,
           visible: isAdmin || isPharmacist,
+        },
+        {
+          id: 'courier',
+          label: 'الشحن وبوابة التوصيل',
+          icon: Truck,
+          badge:
+            activeDeliveriesCount > 0
+              ? activeDeliveriesCount
+              : readyDeliveriesCount > 0
+                ? readyDeliveriesCount
+                : null,
+          badgeColor:
+            activeDeliveriesCount > 0
+              ? 'bg-amber-500 text-slate-950 font-black animate-pulse'
+              : 'bg-blue-600 text-white',
+          visible: isAdmin || isCourier,
         },
         {
           id: 'refills',
@@ -94,139 +95,32 @@ export const AdminSidebar = ({
       ],
     },
     {
-      groupTitle: 'الشحن وبوابة التوصيل',
-      visible: isAdmin || isCourier,
-      items: [
-        {
-          id: 'courier',
-          subId: 'active',
-          label: 'مهام في الطريق (النشطة)',
-          icon: Truck,
-          badge: activeDeliveriesCount > 0 ? activeDeliveriesCount : null,
-          badgeColor: 'bg-amber-500 text-slate-950 font-black animate-pulse',
-          visible: isAdmin || isCourier,
-        },
-        {
-          id: 'courier',
-          subId: 'ready',
-          label: 'جاهز للاستلام والتوصيل',
-          icon: PackageCheck,
-          badge: readyDeliveriesCount > 0 ? readyDeliveriesCount : null,
-          badgeColor: 'bg-blue-600 text-white',
-          visible: isAdmin || isCourier,
-        },
-        {
-          id: 'courier',
-          subId: 'delivered',
-          label: 'سجل الشحنات المسلّمة',
-          icon: CheckCircle2,
-          visible: isAdmin || isCourier,
-        },
-        {
-          id: 'courier',
-          subId: 'finances',
-          label: 'التحصيل والعهدة النقدية',
-          icon: DollarSign,
-          visible: isAdmin || isCourier,
-        },
-        {
-          id: 'courier',
-          subId: 'map',
-          label: 'خريطة ومسارات التوصيل',
-          icon: MapPin,
-          visible: isAdmin || isCourier,
-        },
-        {
-          id: 'courier',
-          subId: 'dispatch',
-          label: 'توزيع وتعيين المناديب',
-          icon: Users,
-          visible: isAdmin,
-        },
-      ],
-    },
-    {
-      groupTitle: 'إدارة المحتوى (CMS المتجر)',
+      groupTitle: 'المتجر والتسويق',
       visible: isAdmin,
       items: [
         {
           id: 'cms',
-          subId: 'identity',
-          label: 'الهوية البصرية والشعار',
-          icon: Globe,
-          visible: isAdmin,
-        },
-        {
-          id: 'cms',
-          subId: 'banners',
-          label: 'السلايدر والبانرات',
-          icon: ImageIcon,
-          visible: isAdmin,
-        },
-        {
-          id: 'cms',
-          subId: 'categories',
-          label: 'الأقسام والتصنيفات',
-          icon: Layers,
-          visible: isAdmin,
-        },
-        {
-          id: 'cms',
-          subId: 'coupons',
-          label: 'أكواد الخصم والكوبونات',
-          icon: Tag,
-          visible: isAdmin,
-        },
-        {
-          id: 'cms',
-          subId: 'articles',
-          label: 'المقالات والنصائح الطبية',
-          icon: BookOpen,
-          visible: isAdmin,
-        },
-        {
-          id: 'cms',
-          subId: 'media',
-          label: 'مكتبة الوسائط والصور',
-          icon: Sparkles,
-          visible: isAdmin,
-        },
-        {
-          id: 'cms',
-          subId: 'business',
-          label: 'بيانات التواصل والتوصيل',
-          icon: Phone,
-          visible: isAdmin,
-        },
-        {
-          id: 'cms',
-          subId: 'seo',
-          label: 'محركات البحث (SEO)',
-          icon: Search,
+          label: 'إدارة المتجر والمحتوى (CMS)',
+          icon: Sliders,
           visible: isAdmin,
         },
       ],
     },
     {
-      groupTitle: 'الفريق والعملاء',
+      groupTitle: 'الإدارة والتحليلات',
       items: [
         {
-          id: 'staff',
-          label: 'حسابات الموظفين والصلاحيات',
-          icon: Users,
-          visible: isAdmin,
-        },
-        {
           id: 'customers',
-          label: 'دليل العملاء',
+          label: 'دليل وسجلات العملاء',
           icon: ShieldCheck,
           visible: isAdmin || isSupport,
         },
-      ],
-    },
-    {
-      groupTitle: 'التقارير والمؤشرات',
-      items: [
+        {
+          id: 'staff',
+          label: 'فريق العمل والصلاحيات',
+          icon: Users,
+          visible: isAdmin,
+        },
         {
           id: 'analytics',
           label: 'التقارير والمؤشرات المالية',
@@ -309,16 +203,13 @@ export const AdminSidebar = ({
 
                 <div className="space-y-1">
                   {visibleItems.map((item) => {
-                    const isCmsItem = item.id === 'cms';
-                    const isActive = isCmsItem
-                      ? activeTab === 'cms' && cmsActiveSubTab === item.subId
-                      : activeTab === item.id;
+                    const isActive = activeTab === item.id;
                     const Icon = item.icon;
 
                     return (
                       <button
-                        key={`${item.id}-${item.subId || ''}`}
-                        onClick={() => handleNavClick(item.id, item.subId)}
+                        key={item.id}
+                        onClick={() => handleNavClick(item.id)}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all group relative cursor-pointer ${isActive
                           ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'

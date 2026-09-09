@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException 
 import { DbService, Order, OrderItem } from '../database/db.service';
 import { PaymentService } from './payment.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './dto/orders.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -9,6 +10,7 @@ export class OrdersService {
   constructor(
     private readonly db: DbService,
     private readonly paymentService: PaymentService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async findAll(query?: {
@@ -194,7 +196,7 @@ export class OrdersService {
         this.db.prisma.product.update({
           where: { id: product.id },
           data: { stock: product.stock },
-        }).catch((e) => console.warn('Prisma product stock decrement error:', e));
+        }).catch(() => {});
       }
     }
 
@@ -345,6 +347,9 @@ export class OrdersService {
         },
       },
     }).catch((e) => console.warn('Prisma order create error:', e));
+
+    // Dispatch Telegram & Email notifications asynchronously
+    this.notificationsService.notifyNewOrder(newOrder);
 
     return newOrder;
   }

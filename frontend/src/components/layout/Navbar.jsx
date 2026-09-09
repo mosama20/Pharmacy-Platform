@@ -21,17 +21,23 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useLocation } from '../../context/LocationContext';
 import { useCms } from '../../context/CmsContext';
+import { NotificationBell } from './NotificationBell';
+import { useNavigate } from 'react-router-dom';
 
 export const Navbar = ({
   onOpenUpload,
   onOpenSearch,
   onOpenAuth,
   onOpenRefill,
+  onOpenInsurance,
+  onOpenTracking,
+  onOpenCart,
   currentView,
   setCurrentView,
   darkMode,
   setDarkMode,
 }) => {
+  const navigate = useNavigate();
   const { user, logout, isAdminOrStaff, isCourier } = useAuth();
   const { totalCount, setIsCartOpen } = useCart();
   const { selectedGovernorate, selectedDistrict, setIsLocationModalOpen } =
@@ -40,8 +46,8 @@ export const Navbar = ({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 w-full max-w-full glass border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs transition-all overflow-hidden">
-      {/* Top Banner Notice (Dynamic Announcement from CMS) */}
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs font-cairo">
+      {/* Dynamic Top Announcement Strip Powered by CMS */}
       {platformSettings.isAnnouncementActive && (
         <div className="bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-600 text-white text-[11px] sm:text-xs py-1 px-3 sm:px-4">
           <div className="max-w-7xl mx-auto flex justify-between items-center font-medium overflow-hidden">
@@ -55,6 +61,14 @@ export const Navbar = ({
               </span>
             </div>
             <div className="hidden md:flex items-center gap-4 shrink-0">
+              <button
+                onClick={onOpenInsurance}
+                className="hover:underline flex items-center gap-1 text-emerald-100 hover:text-white cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+                <span>التعاقدات والتأمين الطبي</span>
+              </button>
+              <span className="text-white/40">|</span>
               <button
                 onClick={onOpenRefill}
                 className="hover:underline flex items-center gap-1 text-emerald-100 hover:text-white cursor-pointer"
@@ -77,7 +91,11 @@ export const Navbar = ({
         {/* Brand Logo */}
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => setCurrentView('store')}
+            onClick={() => {
+              if (setCurrentView) setCurrentView('store');
+              navigate('/');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             className="flex items-center gap-2 group text-right cursor-pointer"
           >
             {platformSettings.logoUrl ? (
@@ -119,19 +137,14 @@ export const Navbar = ({
           </button>
         </div>
 
-        {/* Global Search Input Button (Desktop only) */}
-        <div className="flex-1 max-w-xl hidden md:block">
+        {/* Global Search Input Button (Desktop only, Clean & Simple) */}
+        <div className="flex-1 max-w-md hidden md:block">
           <button
             onClick={onOpenSearch}
-            className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700 text-slate-400 text-xs transition-all cursor-pointer shadow-inner"
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200/70 dark:border-slate-700/70 text-slate-400 text-xs transition-all cursor-pointer shadow-xs"
           >
-            <div className="flex items-center gap-2.5">
-              <Search className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>ابحث باسم الدواء، المادة الفعالة، أو المنتج التجميلي...</span>
-            </div>
-            <kbd className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-slate-500">
-              Ctrl + K
-            </kbd>
+            <Search className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="truncate">ابحث عن دواء أو منتج...</span>
           </button>
         </div>
 
@@ -146,6 +159,9 @@ export const Navbar = ({
             <span>ارفع الروشتة</span>
           </button>
 
+          {/* Customer In-App Notification Bell */}
+          <NotificationBell onOpenTracking={onOpenTracking} />
+
           {/* Theme Switcher */}
           <button
             onClick={() => setDarkMode(!darkMode)}
@@ -155,10 +171,14 @@ export const Navbar = ({
             {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </button>
 
-          {/* Cart Drawer Trigger */}
+          {/* Cart Page Trigger */}
           <button
-            onClick={() => setIsCartOpen(true)}
+            onClick={() => {
+              if (onOpenCart) onOpenCart();
+              else navigate('/cart');
+            }}
             className="relative p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-all cursor-pointer"
+            title="سلة المشتريات"
           >
             <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-700 dark:text-emerald-400" />
             {totalCount > 0 && (
@@ -267,19 +287,14 @@ export const Navbar = ({
         </div>
       </div>
 
-      {/* Row 2: Mobile Search Bar (Full Width, App-like) */}
-      <div className="md:hidden px-3 pb-2.5 pt-0.5">
+      {/* Row 2: Mobile Search Bar (Full Width, Simple & Clean) */}
+      <div className="md:hidden px-3 pb-2 pt-0.5">
         <button
           onClick={onOpenSearch}
-          className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-slate-100/95 dark:bg-slate-800/95 hover:bg-slate-200/90 dark:hover:bg-slate-700/90 border border-slate-200 dark:border-slate-700 text-slate-400 text-xs transition-all active:scale-[0.99] shadow-inner"
+          className="w-full flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100/95 dark:bg-slate-800/95 hover:bg-slate-200/90 dark:hover:bg-slate-700/90 border border-slate-200/70 dark:border-slate-700/70 text-slate-400 text-xs transition-all active:scale-[0.99] shadow-xs"
         >
-          <div className="flex items-center gap-2 truncate">
-            <Search className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="truncate">ابحث عن دواء، مادة فعالة، أو منتج...</span>
-          </div>
-          <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-md shrink-0">
-            بحث
-          </span>
+          <Search className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="truncate">ابحث عن دواء أو منتج...</span>
         </button>
       </div>
     </header>

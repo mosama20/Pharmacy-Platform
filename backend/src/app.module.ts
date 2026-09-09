@@ -14,6 +14,8 @@ import { CmsModule } from './cms/cms.module';
 import { AiModule } from './ai/ai.module';
 import { HealthModule } from './health/health.module';
 import { AuditModule } from './audit/audit.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { AuditModule } from './audit/audit.module';
     AiModule,
     HealthModule,
     AuditModule,
+    NotificationsModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [

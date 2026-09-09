@@ -49,6 +49,7 @@ export interface Prescription {
   customerId: string;
   customerName: string;
   customerPhone: string;
+  customerEmail?: string;
   customerAddress: string;
   governorate: string;
   district: string;
@@ -60,7 +61,18 @@ export interface Prescription {
   hasInsurance: boolean;
   insuranceCompany?: string;
   insuranceCardNumber?: string;
-  status: 'PENDING' | 'UNDER_REVIEW' | 'QUOTED' | 'ACCEPTED' | 'REJECTED' | 'ORDER_CREATED';
+  insuranceCardPhoto?: string;
+  nationalId?: string;
+  requestedItems?: Array<{
+    productId?: string;
+    productName: string;
+    quantity: number;
+    price?: number;
+    dosageNote?: string;
+    image?: string;
+  }>;
+  status: 'PENDING' | 'UNDER_REVIEW' | 'QUOTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'ORDER_CREATED';
+  cancellationReason?: string;
   pharmacistNotes?: string;
   reviewedBy?: string;
   quotedItems?: Array<{
@@ -154,7 +166,7 @@ export interface HeroBanner {
   bg: string;
   accent: string;
   ctaText: string;
-  actionType: 'upload' | 'refill' | 'category' | 'link';
+  actionType: 'upload' | 'refill' | 'category' | 'link' | 'url';
   actionValue?: string;
   img: string;
   order: number;
@@ -221,6 +233,32 @@ export interface FooterColumn {
   links: Array<{ label: string; url: string }>;
 }
 
+export interface QuickCard {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  actionType: 'upload' | 'refill' | 'search' | 'location' | 'category' | 'link' | 'url' | 'none';
+  actionValue?: string;
+  gradient?: string;
+  iconBg?: string;
+  badgeText?: string;
+  order?: number;
+  isVisible?: boolean;
+}
+
+export interface InsuranceCompany {
+  id: string;
+  name: string;
+  code?: string;
+  logo: string;
+  discountOrCoverage: string;
+  notes?: string;
+  requiresCardPhoto?: boolean;
+  isActive: boolean;
+  order: number;
+}
+
 export interface PlatformSettings {
   websiteName: string;
   brandTagline: string;
@@ -257,6 +295,19 @@ export interface PlatformSettings {
   navigationMenu: NavigationItem[];
   footerColumns: FooterColumn[];
   mediaLibrary: MediaAsset[];
+  quickCards?: QuickCard[];
+  insuranceCompanies?: InsuranceCompany[];
+  // Notifications & Integrations
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  telegramNotificationsEnabled?: boolean;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPass?: string;
+  smtpFrom?: string;
+  adminNotificationEmail?: string;
+  emailNotificationsEnabled?: boolean;
 }
 
 @Injectable()
@@ -310,6 +361,52 @@ export class DbService implements OnModuleInit {
       { id: 'nav_refill', label: 'الدواء الشهري', url: '#refill', icon: 'Clock', isVisible: true, order: 2 },
       { id: 'nav_deals', label: 'عروض التوفير', url: '#deals', icon: 'Flame', isVisible: true, order: 3 },
       { id: 'nav_articles', label: 'نصائح طبية', url: '#articles', icon: 'BookOpen', isVisible: true, order: 4 },
+    ],
+    quickCards: [
+      {
+        id: 'card_upload',
+        title: 'رفع وتصوير الروشتة',
+        subtitle: 'تسعير وفحص روشتتك وتوصيلها فوراً',
+        icon: 'FileText',
+        actionType: 'upload',
+        gradient: 'from-emerald-500/10 to-teal-500/10',
+        iconBg: 'bg-emerald-600',
+        order: 1,
+        isVisible: true,
+      },
+      {
+        id: 'card_refill',
+        title: 'الدواء الشهري للمزمن',
+        subtitle: 'توصيل تلقائي لأدوية السكر والضغط',
+        icon: 'Clock',
+        actionType: 'refill',
+        gradient: 'from-teal-500/10 to-cyan-500/10',
+        iconBg: 'bg-teal-600',
+        order: 2,
+        isVisible: true,
+      },
+      {
+        id: 'card_substitutes',
+        title: 'البدائل الدوائية الذكية',
+        subtitle: 'ابحث عن نفس المادة بخصم وأوفر',
+        icon: 'Bot',
+        actionType: 'search',
+        gradient: 'from-purple-500/10 to-indigo-500/10',
+        iconBg: 'bg-purple-600',
+        order: 3,
+        isVisible: true,
+      },
+      {
+        id: 'card_delivery',
+        title: 'توصيل فوري 30-45 د',
+        subtitle: 'من أقرب صيدلية في {selectedDistrict}',
+        icon: 'Truck',
+        actionType: 'location',
+        gradient: 'from-amber-500/10 to-orange-500/10',
+        iconBg: 'bg-amber-500',
+        order: 4,
+        isVisible: true,
+      },
     ],
     footerColumns: [
       {
@@ -374,6 +471,84 @@ export class DbService implements OnModuleInit {
         createdAt: new Date().toISOString(),
       },
     ],
+    insuranceCompanies: [
+      {
+        id: 'ins_samsung',
+        name: 'سامسونج مصر (Samsung)',
+        code: 'SAMSUNG',
+        logo: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=300&q=80',
+        discountOrCoverage: 'تغطية طبية شاملة حتى 85%',
+        notes: 'يرجى إرفاق صورة الكارت ورقم العضوية',
+        requiresCardPhoto: true,
+        isActive: true,
+        order: 1,
+      },
+      {
+        id: 'ins_toshiba',
+        name: 'مجموعة العربي - توشيبا (Toshiba)',
+        code: 'TOSHIBA',
+        logo: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=300&q=80',
+        discountOrCoverage: 'تغطية تأمينية للعاملين وأسرهم',
+        notes: 'صرف الأدوية المزمنة والحادة مع الرقم التأميني',
+        requiresCardPhoto: true,
+        isActive: true,
+        order: 2,
+      },
+      {
+        id: 'ins_unicare',
+        name: 'يونيكير للرعاية الطبية (UniCare)',
+        code: 'UNICARE',
+        logo: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=300&q=80',
+        discountOrCoverage: 'شبكة بطاقات يونيكير المعتمدة',
+        notes: 'تغطية حسب نسبة التحمل المدونة على الكارت',
+        requiresCardPhoto: true,
+        isActive: true,
+        order: 3,
+      },
+      {
+        id: 'ins_axa',
+        name: 'أكسا للرعاية الصحية (AXA OneHealth)',
+        code: 'AXA',
+        logo: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=300&q=80',
+        discountOrCoverage: 'موافقة فورية لبطاقات أكسا',
+        notes: 'خصم وصرف أدوية التعاقد مباشرة',
+        requiresCardPhoto: true,
+        isActive: true,
+        order: 4,
+      },
+      {
+        id: 'ins_mednet',
+        name: 'ميدنت مصر (MedNet)',
+        code: 'MEDNET',
+        logo: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=300&q=80',
+        discountOrCoverage: 'تأمين طبي مباشر لشبكة ميدنت',
+        notes: 'يتطلب رقم البطاقة وتاريخ الانتهاء',
+        requiresCardPhoto: true,
+        isActive: true,
+        order: 5,
+      },
+      {
+        id: 'ins_careplus',
+        name: 'كير بلس للرعاية الصحية (Care Plus)',
+        code: 'CAREPLUS',
+        logo: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=300&q=80',
+        discountOrCoverage: 'كروت النقابات والرعاية الصحية',
+        notes: 'صرف الأدوية بخصومات التعاقد المعتمدة',
+        requiresCardPhoto: true,
+        isActive: true,
+        order: 6,
+      },
+    ],
+    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '8816040899:AAHn5t7WDimz6JudP27PccRPlwFuj8aDMHc',
+    telegramChatId: process.env.TELEGRAM_CHAT_ID || '8800720269',
+    telegramNotificationsEnabled: true,
+    smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
+    smtpPort: Number(process.env.SMTP_PORT || 465),
+    smtpUser: process.env.SMTP_USER || 'wep.osama5@gmail.com',
+    smtpPass: process.env.SMTP_PASS || '',
+    smtpFrom: process.env.SMTP_FROM || 'صيدلية د. شيماء <wep.osama5@gmail.com>',
+    adminNotificationEmail: process.env.ADMIN_NOTIFICATION_EMAIL || 'wep.osama5@gmail.com',
+    emailNotificationsEnabled: true,
   };
 
   private storageDir = path.join(process.cwd(), 'data');
@@ -513,7 +688,7 @@ export class DbService implements OnModuleInit {
 
   public async persistNow() {
     try {
-      // Async background sync to PostgreSQL for mutations
+      // 1. Sync settings to PostgreSQL via Prisma
       if (this.settings) {
         await this.prisma.platformSettings.upsert({
           where: { id: 'default' },
@@ -521,8 +696,27 @@ export class DbService implements OnModuleInit {
           create: { id: 'default', data: this.settings as any },
         }).catch((e) => console.error('Prisma settings sync error:', e));
       }
+
+      // 2. Backup to storage.json to guarantee file integrity across restarts
+      if (!fs.existsSync(this.storageDir)) {
+        fs.mkdirSync(this.storageDir, { recursive: true });
+      }
+      const dataToSave = {
+        users: this.users,
+        products: this.products,
+        prescriptions: this.prescriptions,
+        orders: this.orders,
+        refills: this.refills,
+        banners: this.banners,
+        categories: this.categories,
+        promoCodes: this.promoCodes,
+        articles: this.articles,
+        settings: this.settings,
+        lastSavedAt: new Date().toISOString(),
+      };
+      fs.writeFileSync(this.storageFile, JSON.stringify(dataToSave, null, 2), 'utf8');
     } catch (err) {
-      console.error('❌ Error syncing to PostgreSQL:', err);
+      console.error('❌ Error syncing persistent storage:', err);
     }
   }
 

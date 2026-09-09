@@ -11,6 +11,7 @@ import {
 import { OrdersService } from './orders.service';
 import { TrackingService } from './tracking.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -23,7 +24,7 @@ export class OrdersController {
     private readonly trackingService: TrackingService,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Post()
   async createOrder(@Body() dto: CreateOrderDto, @CurrentUser() user: any) {
     if (user) {

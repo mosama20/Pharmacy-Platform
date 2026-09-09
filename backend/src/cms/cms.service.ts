@@ -11,11 +11,11 @@ export class CmsService {
     return onlyActive ? list.filter((b) => b.isActive) : list;
   }
 
-  createBanner(bannerData: Omit<HeroBanner, 'id'>): HeroBanner {
+  createBanner(bannerData: Omit<HeroBanner, 'id' | 'order' | 'isActive'> & { order?: number; isActive?: boolean }): HeroBanner {
     const newBanner: HeroBanner = {
       id: `ban_${Date.now()}`,
-      order: this.db.banners.length + 1,
-      isActive: true,
+      order: bannerData.order ?? (this.db.banners.length + 1),
+      isActive: bannerData.isActive ?? true,
       ...bannerData,
     };
     this.db.banners.push(newBanner);
@@ -166,18 +166,41 @@ export class CmsService {
     return this.db.settings;
   }
 
-  updateSettings(updates: Partial<PlatformSettings>): PlatformSettings {
+  async updateSettings(updates: Partial<PlatformSettings>): Promise<PlatformSettings> {
+    const normalized: any = { ...updates };
+    if (normalized.websiteSlogan && !normalized.brandTagline) {
+      normalized.brandTagline = normalized.websiteSlogan;
+    }
+    if (normalized.phone && !normalized.hotline) {
+      normalized.hotline = normalized.phone;
+    }
+    if (normalized.email && !normalized.supportEmail) {
+      normalized.supportEmail = normalized.email;
+    }
+    if (normalized.operatingHours && !normalized.workingHours) {
+      normalized.workingHours = normalized.operatingHours;
+    }
+
     this.db.settings = {
       ...this.db.settings,
-      ...updates,
-      socialLinks: updates.socialLinks
-        ? { ...this.db.settings.socialLinks, ...updates.socialLinks }
+      ...normalized,
+      socialLinks: normalized.socialLinks
+        ? { ...this.db.settings.socialLinks, ...normalized.socialLinks }
         : this.db.settings.socialLinks,
-      navigationMenu: updates.navigationMenu || this.db.settings.navigationMenu,
-      footerColumns: updates.footerColumns || this.db.settings.footerColumns,
-      mediaLibrary: updates.mediaLibrary || this.db.settings.mediaLibrary,
+      navigationMenu: normalized.navigationMenu !== undefined
+        ? normalized.navigationMenu
+        : this.db.settings.navigationMenu,
+      footerColumns: normalized.footerColumns !== undefined
+        ? normalized.footerColumns
+        : this.db.settings.footerColumns,
+      mediaLibrary: normalized.mediaLibrary !== undefined
+        ? normalized.mediaLibrary
+        : this.db.settings.mediaLibrary,
+      insuranceCompanies: normalized.insuranceCompanies !== undefined
+        ? normalized.insuranceCompanies
+        : this.db.settings.insuranceCompanies,
     };
-    this.db.persist();
+    await this.db.persistNow();
     return this.db.settings;
   }
 }

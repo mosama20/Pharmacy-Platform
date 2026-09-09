@@ -14,10 +14,16 @@ import {
   Loader2,
   RefreshCw,
   Zap,
+  ZoomIn,
+  Mail,
+  MessageCircle,
 } from 'lucide-react';
+import { ImageViewerModal } from '../common/ImageViewerModal';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
+import { useCms } from '../../context/CmsContext';
+import { pushCustomerNotification } from '../../services/notificationStorage';
 
 // Helper to compress high-res phone camera photos client-side to ~300KB
 const compressImage = (file, maxWidth = 1600, quality = 0.82) => {
@@ -88,6 +94,7 @@ const compressImage = (file, maxWidth = 1600, quality = 0.82) => {
 export const UploadModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { selectedGovernorate, selectedDistrict } = useLocation();
+  const { settings } = useCms();
 
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -95,8 +102,10 @@ export const UploadModal = ({ isOpen, onClose }) => {
 
   const [uploadedImage, setUploadedImage] = useState(null);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [customerName, setCustomerName] = useState(user?.name || '');
   const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
+  const [customerEmail, setCustomerEmail] = useState(user?.email || '');
   const [addressDetails, setAddressDetails] = useState('');
   const [notes, setNotes] = useState('');
   const [allowAlternatives, setAllowAlternatives] = useState(true);
@@ -113,6 +122,7 @@ export const UploadModal = ({ isOpen, onClose }) => {
     if (user) {
       if (!customerName && user.name) setCustomerName(user.name);
       if (!customerPhone && user.phone) setCustomerPhone(user.phone);
+      if (!customerEmail && user.email) setCustomerEmail(user.email);
     }
   }, [user]);
 
@@ -245,21 +255,46 @@ export const UploadModal = ({ isOpen, onClose }) => {
         ? `${addressDetails.trim()} - ${selectedDistrict} - ${selectedGovernorate}`
         : `${selectedDistrict} - ${selectedGovernorate}`;
 
+      // Upload image to Cloudflare / server storage first
+      let cleanImageUrl = uploadedImage.dataUrl;
+      try {
+        const uploadRes = await api.uploadBase64(
+          uploadedImage.dataUrl,
+          'prescriptions',
+          uploadedImage.name || 'prescription.jpg'
+        );
+        if (uploadRes?.url) {
+          cleanImageUrl = uploadRes.url;
+        }
+      } catch (uploadErr) {
+        console.warn('Storage upload fallback to direct dataUrl:', uploadErr);
+      }
+
       const res = await api.uploadPrescription({
         customerId: user?.id || 'guest_' + Date.now(),
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
+        customerEmail: customerEmail.trim() || undefined,
         governorate: selectedGovernorate,
         district: selectedDistrict,
         customerAddress: fullAddress,
-        images: [uploadedImage.dataUrl],
-        imageUrl: uploadedImage.dataUrl,
+        images: [cleanImageUrl],
+        imageUrl: cleanImageUrl,
         notes: notes.trim() || 'طلب روشتة مباشرة',
         patientNotes: notes.trim() || 'طلب روشتة مباشرة',
         allowAlternatives,
       });
 
       const prescriptionData = res?.prescription || res;
+
+      // Push in-app & browser notification
+      pushCustomerNotification({
+        title: 'تم استلام الروشتة بنجاح 📋',
+        body: `الروشتة #${prescriptionData.id || ''} قيد المراجعة والتسعير من الصيدلي في صيدلية د. شيماء`,
+        type: 'prescription',
+        rxId: prescriptionData.id,
+      });
+
       setSuccessResult(prescriptionData);
     } catch (err) {
       setError(err.message || 'فشل إرسال الروشتة، يرجى المحاولة مرة أخرى.');
@@ -372,27 +407,62 @@ export const UploadModal = ({ isOpen, onClose }) => {
         {!isLiveCameraOpen && (
           <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
             {successResult ? (
-              <div className="py-8 text-center space-y-4 animate-in fade-in">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center mx-auto animate-bounce">
-                  <CheckCircle2 className="w-10 h-10" />
+              <div className="py-6 sm:py-8 text-center space-y-4 animate-in fade-in font-cairo max-w-md mx-auto">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30 animate-bounce">
+                  <CheckCircle2 className="w-9 h-9" />
                 </div>
-                <h4 className="text-xl font-black text-slate-900 dark:text-white font-tajawal">
-                  تم استلام روشتتك بنجاح!
+                <h4 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                  تم استلام روشتتك بنجاح! 📋
                 </h4>
-                <p className="text-xs text-slate-600 dark:text-slate-300 max-w-sm mx-auto leading-relaxed">
-                  رقم طلب الروشتة:{' '}
-                  <strong className="font-mono text-emerald-600 text-sm">
-                    {successResult.id || successResult.prescriptionNumber}
-                  </strong>
-                  <br />
-                  يقوم الصيدلي المناوب بمراجعة الأدوية وتجهيز طلبك فوراً، وسنتصل بك على ({customerPhone}) لتأكيد التسعير وموعد التوصيل.
-                </p>
-                <button
-                  onClick={handleReset}
-                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
-                >
-                  العودة للمتجر
-                </button>
+                <div className="bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl p-3.5 text-center">
+                  <span className="text-xs text-emerald-800 dark:text-emerald-200 block mb-0.5">
+                    كود الروشتة المرجعي:
+                  </span>
+                  <code className="text-lg font-black font-mono text-emerald-700 dark:text-emerald-300 tracking-wider">
+                    #{successResult.id || successResult.prescriptionNumber}
+                  </code>
+                </div>
+
+                <div className="space-y-2 text-xs text-right">
+                  <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                    <span className="text-base">🔔</span>
+                    <span className="leading-tight">
+                      تم إرسال صورة الروشتة فوراً إلى <strong>هاتف الصيدلي وبوت التليجرام</strong> لفحصها وتحديد أسعار الأدوية.
+                    </span>
+                  </div>
+                  {customerEmail && (
+                    <div className="p-3 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900 text-teal-800 dark:text-teal-200 flex items-center gap-2">
+                      <span className="text-base">📧</span>
+                      <span className="leading-tight truncate">
+                        تم إرسال تأكيد الاستلام إلى بريدك: <strong>{customerEmail}</strong>
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-slate-500 text-center pt-1">
+                    سنتصل بك هاتفياً على ({customerPhone}) فور انتهاء المراجعة لتأكيد الطلب والتوصيل.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <a
+                    href={`https://wa.me/${(settings.whatsapp || '01012345678').replace(/[^0-9]/g, '').startsWith('0') ? '2' + (settings.whatsapp || '01012345678').replace(/[^0-9]/g, '') : (settings.whatsapp || '01012345678').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                      `مرحباً ${settings.websiteName || 'الصيدلية الذكية'}، قمت برفع روشتة طبية برقم (#${successResult.id || ''}) وأود الاستفسار عنها.`,
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3 px-4 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-green-600/20 transition-all hover:scale-[1.01]"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>متابعة الروشتة عبر واتساب الصيدلية</span>
+                  </a>
+
+                  <button
+                    onClick={handleReset}
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer"
+                  >
+                    العودة للمتجر
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -465,11 +535,21 @@ export const UploadModal = ({ isOpen, onClose }) => {
                               <FileText className="w-7 h-7" />
                             </div>
                           ) : (
-                            <img
-                              src={uploadedImage.dataUrl}
-                              alt="Prescription Preview"
-                              className="w-14 h-14 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs shrink-0"
-                            />
+                            <button
+                              type="button"
+                              onClick={() => setIsPreviewOpen(true)}
+                              className="relative group/thumb cursor-zoom-in rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              title="اضغط لتكبير الصورة وفحص خط الروشتة"
+                            >
+                              <img
+                                src={uploadedImage.dataUrl}
+                                alt="Prescription Preview"
+                                className="w-14 h-14 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs group-hover/thumb:scale-105 transition-transform shrink-0"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                <ZoomIn className="w-4 h-4" />
+                              </div>
+                            </button>
                           )}
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
@@ -494,18 +574,32 @@ export const UploadModal = ({ isOpen, onClose }) => {
                         </div>
                       </div>
 
-                      {/* Retake shortcut button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleRemoveImage();
-                          startLiveCamera();
-                        }}
-                        className="w-full py-1.5 rounded-xl bg-white dark:bg-slate-700 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600 flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>إعادة تصوير الروشتة</span>
-                      </button>
+                      {/* Action buttons: Zoom Preview & Retake */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {!uploadedImage.isPdf && (
+                          <button
+                            type="button"
+                            onClick={() => setIsPreviewOpen(true)}
+                            className="py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800 flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <ZoomIn className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>تكبير وفحص الوضوح</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleRemoveImage();
+                            startLiveCamera();
+                          }}
+                          className={`py-1.5 rounded-xl bg-white dark:bg-slate-700 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600 flex items-center justify-center gap-1.5 cursor-pointer ${
+                            uploadedImage.isPdf ? 'col-span-2' : ''
+                          }`}
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>إعادة التصوير</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -550,6 +644,23 @@ export const UploadModal = ({ isOpen, onClose }) => {
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
                         placeholder="01012345678"
+                        className="w-full pr-9 pl-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email (Optional) */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                      البريد الإلكتروني لاستلام التسعيرة والتأكيد (اختياري)
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+                      <input
+                        type="email"
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        placeholder="example@mail.com"
                         className="w-full pr-9 pl-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono focus:outline-none focus:border-emerald-500"
                       />
                     </div>
@@ -627,6 +738,14 @@ export const UploadModal = ({ isOpen, onClose }) => {
           </div>
         )}
       </div>
+
+      {/* High-Resolution Prescription Viewer Modal */}
+      <ImageViewerModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        imageUrl={uploadedImage?.dataUrl}
+        title="معاينة وضوح صورة الروشتة قبل التأكيد"
+      />
     </div>
   );
 };

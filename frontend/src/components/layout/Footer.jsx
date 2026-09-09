@@ -9,6 +9,8 @@ import {
   MapPin,
   Sparkles,
   ExternalLink,
+  MessageCircle,
+  Globe,
 } from 'lucide-react';
 import { useCms } from '../../context/CmsContext';
 
@@ -76,7 +78,7 @@ export const Footer = () => {
                 />
               ) : (
                 <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-black text-lg">
-                  {settings.logoText || 'شـ'}
+                  {settings.logoText || 'صـ'}
                 </div>
               )}
               <span className="text-2xl font-black text-white font-tajawal">
@@ -144,6 +146,19 @@ export const Footer = () => {
                 <Phone className="w-4 h-4 text-emerald-400" />
                 <span>الخط الساخن: <strong className="text-white font-mono">{settings.hotline || '19876'}</strong></span>
               </div>
+              {settings.whatsapp && (
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-emerald-400" />
+                  <a
+                    href={`https://wa.me/${(settings.whatsapp || '').replace(/[^0-9]/g, '').startsWith('0') ? '2' + (settings.whatsapp || '').replace(/[^0-9]/g, '') : (settings.whatsapp || '').replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-emerald-400 hover:underline transition-colors"
+                  >
+                    واتساب: <strong className="text-white font-mono">{settings.whatsapp}</strong>
+                  </a>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-emerald-400" />
                 <span>{settings.supportEmail || 'admin@pharmacy.com'}</span>
@@ -189,6 +204,63 @@ export const Footer = () => {
         {/* Copyright & Social */}
         <div className="pt-6 border-t border-slate-800 text-center text-xs text-slate-500 flex flex-col md:flex-row justify-between items-center gap-4">
           <p>© 2026 {settings.websiteName || 'الصيدلية الذكية'}. جميع الحقوق محفوظة.</p>
+
+          {/* Dynamic Social Links from CMS */}
+          {settings.socialLinks && Object.values(settings.socialLinks).some(Boolean) && (
+            <div className="flex items-center gap-2">
+              {settings.socialLinks.facebook && (
+                <a
+                  href={settings.socialLinks.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-blue-600 hover:text-white transition text-[11px] font-medium"
+                >
+                  Facebook
+                </a>
+              )}
+              {settings.socialLinks.instagram && (
+                <a
+                  href={settings.socialLinks.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-pink-600 hover:text-white transition text-[11px] font-medium"
+                >
+                  Instagram
+                </a>
+              )}
+              {settings.socialLinks.twitter && (
+                <a
+                  href={settings.socialLinks.twitter}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-sky-600 hover:text-white transition text-[11px] font-medium"
+                >
+                  Twitter/X
+                </a>
+              )}
+              {settings.socialLinks.youtube && (
+                <a
+                  href={settings.socialLinks.youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-red-600 hover:text-white transition text-[11px] font-medium"
+                >
+                  YouTube
+                </a>
+              )}
+              {settings.socialLinks.tiktok && (
+                <a
+                  href={settings.socialLinks.tiktok}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 hover:text-white transition text-[11px] font-medium"
+                >
+                  TikTok
+                </a>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center gap-4">
             <span className="hover:text-slate-400 cursor-pointer">الشروط والأحكام</span>
             <span>•</span>

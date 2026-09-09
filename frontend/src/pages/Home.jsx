@@ -117,7 +117,8 @@ const CategorySection = ({
       {/* Horizontal Swipeable Track */}
       <div
         ref={scrollRef}
-        className="flex gap-2.5 sm:gap-4 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth snap-x touch-pan-x"
+        className="flex gap-2.5 sm:gap-4 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth snap-x overscroll-x-contain"
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {products.map((product) => (
           <div
@@ -132,16 +133,98 @@ const CategorySection = ({
   );
 };
 
+import { useNavigate, useOutletContext } from 'react-router-dom';
+
+const QUICK_ICON_MAP = {
+  FileText,
+  Clock,
+  Bot,
+  Truck,
+  Sparkles,
+  Pill,
+  Heart,
+  ShieldCheck,
+  Zap,
+  Flame,
+  Search,
+  Stethoscope,
+};
+
+const DEFAULT_QUICK_CARDS = [
+  {
+    id: 'card_upload',
+    title: 'رفع وتصوير الروشتة',
+    subtitle: 'تسعير وفحص روشتتك وتوصيلها فوراً',
+    icon: 'FileText',
+    actionType: 'upload',
+    gradient: 'from-emerald-500/10 to-teal-500/10',
+    iconBg: 'bg-emerald-600',
+    isVisible: true,
+  },
+  {
+    id: 'card_insurance',
+    title: 'التعاقدات والتأمين الطبي',
+    subtitle: 'سامسونج، توشيبا، يونيكير، أكسا...',
+    icon: 'ShieldCheck',
+    actionType: 'insurance',
+    gradient: 'from-teal-500/10 to-emerald-500/10',
+    iconBg: 'bg-teal-700',
+    isVisible: true,
+  },
+  {
+    id: 'card_refill',
+    title: 'الدواء الشهري للمزمن',
+    subtitle: 'توصيل تلقائي لأدوية السكر والضغط',
+    icon: 'Clock',
+    actionType: 'refill',
+    gradient: 'from-teal-500/10 to-cyan-500/10',
+    iconBg: 'bg-teal-600',
+    isVisible: true,
+  },
+  {
+    id: 'card_substitutes',
+    title: 'البدائل الدوائية الذكية',
+    subtitle: 'ابحث عن نفس المادة بخصم وأوفر',
+    icon: 'Bot',
+    actionType: 'search',
+    gradient: 'from-purple-500/10 to-indigo-500/10',
+    iconBg: 'bg-purple-600',
+    isVisible: true,
+  },
+  {
+    id: 'card_delivery',
+    title: 'توصيل فوري 30-45 د',
+    subtitle: 'من أقرب صيدلية في {selectedDistrict}',
+    icon: 'Truck',
+    actionType: 'location',
+    gradient: 'from-amber-500/10 to-orange-500/10',
+    iconBg: 'bg-amber-500',
+    isVisible: true,
+  },
+];
+
 export const Home = ({
-  onOpenUpload,
-  onOpenRefill,
-  onOpenSearch,
-  onQuickView,
-  selectedCategory,
-  onSelectCategory,
+  onOpenUpload: propOnOpenUpload,
+  onOpenRefill: propOnOpenRefill,
+  onOpenInsurance: propOnOpenInsurance,
+  onOpenSearch: propOnOpenSearch,
+  onQuickView: propOnQuickView,
+  selectedCategory: propSelectedCategory,
+  onSelectCategory: propOnSelectCategory,
 }) => {
-  const { selectedDistrict } = useLocation();
-  const { banners: cmsBanners, articles: cmsArticles } = useCms();
+  const outletCtx = useOutletContext() || {};
+  const navigate = useNavigate();
+
+  const onOpenUpload = propOnOpenUpload || outletCtx.onOpenUpload;
+  const onOpenRefill = propOnOpenRefill || outletCtx.onOpenRefill;
+  const onOpenInsurance = propOnOpenInsurance || outletCtx.onOpenInsurance;
+  const onOpenSearch = propOnOpenSearch || outletCtx.onOpenSearch;
+  const selectedCategory = propSelectedCategory || outletCtx.selectedCategory || 'الكل';
+  const onSelectCategory = propOnSelectCategory || outletCtx.setSelectedCategory;
+  const onQuickView = propOnQuickView || ((prod) => navigate(`/product/${prod.id}`));
+
+  const { selectedDistrict, setIsLocationModalOpen } = useLocation();
+  const { banners: cmsBanners, articles: cmsArticles, settings } = useCms();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [heroSlide, setHeroSlide] = useState(0);
@@ -174,8 +257,15 @@ export const Home = ({
     },
   ];
 
-  const banners = cmsBanners && cmsBanners.length > 0 ? cmsBanners : fallbackBanners;
+  const rawBanners = cmsBanners && cmsBanners.length > 0 ? cmsBanners : fallbackBanners;
+  const activeBanners = rawBanners.filter((b) => b.isActive !== false);
+  const banners = activeBanners.length > 0 ? activeBanners : fallbackBanners;
   const articles = cmsArticles || [];
+
+  const rawCards = settings?.quickCards && settings.quickCards.length > 0
+    ? settings.quickCards
+    : DEFAULT_QUICK_CARDS;
+  const quickCards = rawCards.filter((c) => c.isVisible !== false);
 
   useEffect(() => {
     setSelectedSubCategory('ALL');
@@ -215,8 +305,42 @@ export const Home = ({
   const handleBannerAction = (banner) => {
     if (banner.actionType === 'upload') onOpenUpload();
     else if (banner.actionType === 'refill') onOpenRefill();
+    else if (banner.actionType === 'insurance') onOpenInsurance?.();
     else if (banner.actionType === 'category' && banner.actionValue) {
       onSelectCategory(banner.actionValue);
+    } else if ((banner.actionType === 'link' || banner.actionType === 'url') && banner.actionValue) {
+      if (banner.actionValue.startsWith('http')) {
+        window.open(banner.actionValue, '_blank');
+      } else {
+        navigate(banner.actionValue);
+      }
+    } else {
+      onOpenUpload();
+    }
+  };
+
+  const handleCardAction = (card) => {
+    if (!card || !card.actionType || card.actionType === 'none') return;
+    if (card.actionType === 'upload') {
+      onOpenUpload();
+    } else if (card.actionType === 'refill') {
+      onOpenRefill();
+    } else if (card.actionType === 'insurance') {
+      onOpenInsurance?.();
+    } else if (card.actionType === 'search') {
+      onOpenSearch();
+    } else if (card.actionType === 'location') {
+      if (typeof setIsLocationModalOpen === 'function') {
+        setIsLocationModalOpen(true);
+      }
+    } else if (card.actionType === 'category' && card.actionValue) {
+      onSelectCategory(card.actionValue);
+    } else if ((card.actionType === 'link' || card.actionType === 'url') && card.actionValue) {
+      if (card.actionValue.startsWith('http')) {
+        window.open(card.actionValue, '_blank');
+      } else {
+        navigate(card.actionValue);
+      }
     } else {
       onOpenUpload();
     }
@@ -373,116 +497,42 @@ export const Home = ({
         </div>
       </section>
 
-      {/* 2. Fast Actions Grid (2x2 on Mobile, 4x1 on Desktop) */}
+      {/* 2. Fast Actions Grid (Dynamic from CMS) */}
       <section className="max-w-7xl mx-auto px-3 sm:px-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
-          <div
-            onClick={onOpenUpload}
-            className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 hover:border-emerald-500/40 active:scale-98 transition-all cursor-pointer group shadow-xs"
-          >
-            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-600 text-white flex items-center justify-center mb-2 sm:mb-3 shadow-md shadow-emerald-600/30 group-hover:scale-105 transition-transform">
-              <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <h3 className="font-bold text-xs sm:text-base text-slate-800 dark:text-slate-100 font-tajawal">
-              رفع وتصوير الروشتة
-            </h3>
-            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 line-clamp-2">
-              تسعير وفحص روشتتك وتوصيلها فوراً
-            </p>
-          </div>
+          {quickCards.map((card) => {
+            const IconComponent = QUICK_ICON_MAP[card.icon] || Sparkles;
+            const dynamicSubtitle = card.subtitle?.replace(
+              '{selectedDistrict}',
+              selectedDistrict || 'المعادي'
+            );
 
-          <div
-            onClick={onOpenRefill}
-            className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-teal-500/10 to-cyan-500/10 border border-teal-500/20 hover:border-teal-500/40 active:scale-98 transition-all cursor-pointer group shadow-xs"
-          >
-            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-teal-600 text-white flex items-center justify-center mb-2 sm:mb-3 shadow-md shadow-teal-600/30 group-hover:scale-105 transition-transform">
-              <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <h3 className="font-bold text-xs sm:text-base text-slate-800 dark:text-slate-100 font-tajawal">
-              الدواء الشهري للمزمن
-            </h3>
-            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 line-clamp-2">
-              توصيل تلقائي لأدوية السكر والضغط
-            </p>
-          </div>
-
-          <div
-            onClick={onOpenSearch}
-            className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border border-purple-500/20 hover:border-purple-500/40 active:scale-98 transition-all cursor-pointer group shadow-xs"
-          >
-            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-600 text-white flex items-center justify-center mb-2 sm:mb-3 shadow-md shadow-purple-600/30 group-hover:scale-105 transition-transform">
-              <Bot className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <h3 className="font-bold text-xs sm:text-base text-slate-800 dark:text-slate-100 font-tajawal">
-              البدائل الدوائية الذكية
-            </h3>
-            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 line-clamp-2">
-              ابحث عن نفس المادة بخصم وأوفر
-            </p>
-          </div>
-
-          <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 shadow-xs">
-            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-500 text-white flex items-center justify-center mb-2 sm:mb-3 shadow-md shadow-amber-500/30">
-              <Truck className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <h3 className="font-bold text-xs sm:text-base text-slate-800 dark:text-slate-100 font-tajawal">
-              توصيل فوري 30-45 د
-            </h3>
-            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 line-clamp-2">
-              من أقرب صيدلية في {selectedDistrict}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. Category Quick-Navigation Pills Hub */}
-      <section className="max-w-7xl mx-auto px-3 sm:px-4">
-        <div className="p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-          <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
-            <div className="flex items-center gap-1.5">
-              <Layers className="w-4 h-4 text-emerald-600" />
-              <span>تصفح الأقسام الطبية والصيدلانية:</span>
-            </div>
-            {selectedCategory !== 'الكل' && (
-              <button
-                onClick={() => onSelectCategory('الكل')}
-                className="text-emerald-600 hover:text-emerald-700 text-[11px] font-bold cursor-pointer"
+            return (
+              <div
+                key={card.id}
+                onClick={() => handleCardAction(card)}
+                className={`p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-br ${
+                  card.gradient || 'from-emerald-500/10 to-teal-500/10'
+                } border border-slate-200/50 dark:border-slate-800/80 hover:border-emerald-500/40 hover:scale-[1.02] active:scale-98 transition-all cursor-pointer group shadow-xs flex flex-col justify-between`}
               >
-                عرض كافة الأقسام (الكل)
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth touch-pan-x">
-            {[
-              { label: 'الكل', value: 'الكل', icon: Layers },
-              { label: 'عروض التوفير', value: 'عروض التوفير (Big Save)', icon: Flame, isSpecial: true },
-              { label: 'أدوية وعلاج', value: 'الأدوية (Medications)', icon: Pill },
-              { label: 'فيتامينات ومناعة', value: 'الفيتامينات والمكملات (Vitamins)', icon: HeartPulse },
-              { label: 'العناية بالبشرة', value: 'العناية بالبشرة (Skin Care)', icon: Sparkles },
-              { label: 'الأم والطفل', value: 'الأم والطفل (Mom & Baby)', icon: Baby },
-              { label: 'أجهزة طبية', value: 'الأجهزة والمستلزمات الطبية (Health Care Devices)', icon: Smile },
-            ].map((cat) => {
-              const Icon = cat.icon;
-              const isSelected = selectedCategory === cat.value;
-              return (
-                <button
-                  key={cat.value}
-                  onClick={() => onSelectCategory(cat.value)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all active:scale-95 cursor-pointer shrink-0 ${
-                    cat.isSpecial
-                      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25'
-                      : isSelected
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${cat.isSpecial ? 'animate-pulse' : ''}`} />
-                  <span>{cat.label}</span>
-                </button>
-              );
-            })}
-          </div>
+                <div>
+                  <div
+                    className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${
+                      card.iconBg || 'bg-emerald-600'
+                    } text-white flex items-center justify-center mb-2 sm:mb-3 shadow-md shadow-black/10 group-hover:scale-105 transition-transform`}
+                  >
+                    <IconComponent className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </div>
+                  <h3 className="font-bold text-xs sm:text-base text-slate-800 dark:text-slate-100 font-tajawal">
+                    {card.title}
+                  </h3>
+                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1 line-clamp-2">
+                    {dynamicSubtitle}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -639,7 +689,10 @@ export const Home = ({
           </div>
 
           {/* Subcategories Filter Chips */}
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth touch-pan-x">
+          <div
+            className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth overscroll-x-contain"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
             {[
               'ALL',
               ...Array.from(new Set(products.map((p) => p.subCategory).filter(Boolean))),

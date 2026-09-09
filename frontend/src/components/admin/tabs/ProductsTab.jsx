@@ -23,30 +23,50 @@ export const ProductsTab = ({
   products = [],
   onOpenNewProductModal,
   onOpenExcelImportModal,
+  onUpdateStock,
   onRefresh,
 }) => {
   const [search, setSearch] = useState('');
   const [selectedMainCat, setSelectedMainCat] = useState('ALL');
   const [selectedSubCat, setSelectedSubCat] = useState('ALL');
+  const [stockFilter, setStockFilter] = useState('ALL'); // 'ALL' | 'LOW' | 'OUT'
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  const [editingStockId, setEditingStockId] = useState(null);
+  const [editingStockVal, setEditingStockVal] = useState('');
+
+  // Safely extract products array whether it's direct array or { data: [...] }
+  const safeProducts = useMemo(() => {
+    if (Array.isArray(products)) return products;
+    if (Array.isArray(products?.data)) return products.data;
+    return [];
+  }, [products]);
+
+  // Stock summary counts
+  const stockStats = useMemo(() => {
+    return {
+      all: safeProducts.length,
+      low: safeProducts.filter((p) => (p?.stock ?? 0) > 0 && (p?.stock ?? 0) <= 15).length,
+      out: safeProducts.filter((p) => !p?.stock || p.stock === 0).length,
+    };
+  }, [safeProducts]);
 
   // Extract unique main categories
   const mainCategories = useMemo(() => {
-    const cats = new Set(products.map((p) => p.category).filter(Boolean));
+    const cats = new Set(safeProducts.map((p) => p?.category).filter(Boolean));
     return ['ALL', ...Array.from(cats)];
-  }, [products]);
+  }, [safeProducts]);
 
   // Extract subcategories based on selected main category
   const subCategories = useMemo(() => {
     if (selectedMainCat === 'ALL') {
-      const subs = new Set(products.map((p) => p.subCategory).filter(Boolean));
+      const subs = new Set(safeProducts.map((p) => p?.subCategory).filter(Boolean));
       return ['ALL', ...Array.from(subs)];
     }
-    const filteredByMain = products.filter((p) => p.category === selectedMainCat);
-    const subs = new Set(filteredByMain.map((p) => p.subCategory).filter(Boolean));
+    const filteredByMain = safeProducts.filter((p) => p?.category === selectedMainCat);
+    const subs = new Set(filteredByMain.map((p) => p?.subCategory).filter(Boolean));
     return ['ALL', ...Array.from(subs)];
-  }, [products, selectedMainCat]);
+  }, [safeProducts, selectedMainCat]);
 
   // Handle main category change
   const handleMainCatChange = (cat) => {
@@ -66,9 +86,18 @@ export const ProductsTab = ({
   };
 
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    return safeProducts.filter((p) => {
+      if (!p) return false;
       const matchesMain = selectedMainCat === 'ALL' || p.category === selectedMainCat;
       const matchesSub = selectedSubCat === 'ALL' || p.subCategory === selectedSubCat;
+      
+      let matchesStock = true;
+      if (stockFilter === 'LOW') {
+        matchesStock = (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 15;
+      } else if (stockFilter === 'OUT') {
+        matchesStock = !p.stock || p.stock === 0;
+      }
+
       const q = search.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -76,9 +105,9 @@ export const ProductsTab = ({
         p.nameEn?.toLowerCase().includes(q) ||
         p.activeIngredient?.toLowerCase().includes(q) ||
         p.id?.toLowerCase().includes(q);
-      return matchesMain && matchesSub && matchesSearch;
+      return matchesMain && matchesSub && matchesStock && matchesSearch;
     });
-  }, [products, selectedMainCat, selectedSubCat, search]);
+  }, [safeProducts, selectedMainCat, selectedSubCat, stockFilter, search]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -96,7 +125,7 @@ export const ProductsTab = ({
       <PageHeader
         title="المخزون والأدوية والمنتجات"
         description="إدارة قاعدة بيانات الأدوية المصنفة، مستويات المخزون، والأسعار عبر شيت الإكسيل"
-        badge={`${products.length.toLocaleString('ar-EG')} صنف مسجل في الكتالوج`}
+        badge={`${safeProducts.length.toLocaleString('ar-EG')} صنف مسجل في الكتالوج`}
       >
         <div className="flex flex-wrap items-center gap-2">
           {/* Refresh button */}
@@ -198,6 +227,46 @@ export const ProductsTab = ({
             </div>
           </div>
         )}
+
+        {/* Stock Level Quick Filter Pills */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
+            <span className="text-[11px] text-slate-400 font-bold whitespace-nowrap ml-1">
+              مستويات المخزون:
+            </span>
+            <button
+              onClick={() => { setStockFilter('ALL'); setPage(1); }}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                stockFilter === 'ALL'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              جميع المنتجات ({stockStats.all})
+            </button>
+            <button
+              onClick={() => { setStockFilter('LOW'); setPage(1); }}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1 ${
+                stockFilter === 'LOW'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/50'
+              }`}
+            >
+              <AlertTriangle className="w-3 h-3" />
+              <span>مخزون منخفض ({stockStats.low})</span>
+            </button>
+            <button
+              onClick={() => { setStockFilter('OUT'); setPage(1); }}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1 ${
+                stockFilter === 'OUT'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/50'
+              }`}
+            >
+              <span>نواقص المخزن - 0 عبوة ({stockStats.out})</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Products Table */}
@@ -218,7 +287,7 @@ export const ProductsTab = ({
               </strong> من إجمالي نتائج مطابقة:{' '}
               <strong className="text-slate-800 dark:text-slate-200 font-mono">{filteredProducts.length.toLocaleString('ar-EG')}</strong>
               {' '}(من إجمالي الكتالوج المسجل:{' '}
-              <strong className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">{products.length.toLocaleString('ar-EG')}</strong> صنف)
+              <strong className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">{safeProducts.length.toLocaleString('ar-EG')}</strong> صنف)
             </div>
             {selectedMainCat !== 'ALL' && (
               <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] w-fit">
@@ -304,19 +373,97 @@ export const ProductsTab = ({
                         )}
                       </td>
 
-                      {/* Stock */}
+                      {/* Stock Control */}
                       <td className="p-4">
-                        <div className="flex items-center gap-1.5">
-                          {isLowStock ? (
-                            <span className="px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 font-bold font-mono text-[11px] inline-flex items-center gap-1">
-                              <AlertTriangle className="w-3 h-3" />
-                              <span>{p.stock} (مخزون منخفض)</span>
-                            </span>
-                          ) : (
-                            <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                              {p.stock} عبوة
-                            </span>
-                          )}
+                        <div className="space-y-1.5 min-w-[140px]">
+                          <div className="flex items-center gap-1">
+                            {/* Decrement Button */}
+                            <button
+                              type="button"
+                              onClick={() => onUpdateStock && onUpdateStock(p.id, Math.max(0, (Number(p.stock) || 0) - 1))}
+                              className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold text-xs cursor-pointer transition-colors"
+                              title="تقليل المخزون بمقدار 1"
+                            >
+                              -
+                            </button>
+
+                            {/* Editable stock count */}
+                            {editingStockId === p.id ? (
+                              <input
+                                type="number"
+                                min="0"
+                                autoFocus
+                                value={editingStockVal}
+                                onChange={(e) => setEditingStockVal(e.target.value)}
+                                onBlur={() => {
+                                  if (editingStockVal !== '' && onUpdateStock) {
+                                    onUpdateStock(p.id, Math.max(0, Number(editingStockVal)));
+                                  }
+                                  setEditingStockId(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    if (editingStockVal !== '' && onUpdateStock) {
+                                      onUpdateStock(p.id, Math.max(0, Number(editingStockVal)));
+                                    }
+                                    setEditingStockId(null);
+                                  } else if (e.key === 'Escape') {
+                                    setEditingStockId(null);
+                                  }
+                                }}
+                                className="w-14 px-1 py-0.5 text-center font-mono font-bold text-xs rounded border border-teal-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                              />
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingStockId(p.id);
+                                  setEditingStockVal(String(p.stock ?? 0));
+                                }}
+                                className="w-14 py-0.5 text-center font-mono font-bold text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white border border-transparent hover:border-slate-300 transition-colors cursor-pointer"
+                                title="اضغط لتعديل الرقم مباشرة"
+                              >
+                                {p.stock ?? 0}
+                              </button>
+                            )}
+
+                            {/* Increment Button */}
+                            <button
+                              type="button"
+                              onClick={() => onUpdateStock && onUpdateStock(p.id, (Number(p.stock) || 0) + 1)}
+                              className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold text-xs cursor-pointer transition-colors"
+                              title="زيادة المخزون بمقدار 1"
+                            >
+                              +
+                            </button>
+
+                            {/* Quick +10 button */}
+                            <button
+                              type="button"
+                              onClick={() => onUpdateStock && onUpdateStock(p.id, (Number(p.stock) || 0) + 10)}
+                              className="px-1.5 py-0.5 rounded-md bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold text-[10px] cursor-pointer transition-colors"
+                              title="إضافة 10 عبوات دفعة واحدة"
+                            >
+                              +10
+                            </button>
+                          </div>
+
+                          {/* Stock status indicator tag */}
+                          <div>
+                            {p.stock === 0 || !p.stock ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 inline-block">
+                                نافد من المخزن (0)
+                              </span>
+                            ) : p.stock <= 15 ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 inline-block">
+                                مخزون منخفض ({p.stock})
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 inline-block">
+                                متوفر ({p.stock} عبوة)
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 

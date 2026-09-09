@@ -377,13 +377,52 @@ export const api = {
     return data;
   },
 
-  updatePrescriptionStatus: async (id, status) => {
+  updatePrescriptionStatus: async (id, status, cancellationReason = null) => {
+    const payload = { status };
+    if (cancellationReason) {
+      payload.cancellationReason = cancellationReason;
+    }
     const res = await fetch(`${API_BASE}/prescriptions/${id}/status`, {
       method: 'PATCH',
       headers: getHeaders(true),
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(payload),
     });
-    return res.json();
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل تحديث حالة الروشتة');
+    return data;
+  },
+
+  // Media & File Upload (Cloudflare R2 / Server Storage)
+  uploadFile: async (file, folder = 'general') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_BASE}/upload?folder=${encodeURIComponent(folder)}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الملف');
+    return data;
+  },
+
+  uploadBase64: async (base64, folder = 'general', filename = 'image.jpg') => {
+    const res = await fetch(`${API_BASE}/upload`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ base64, folder, filename }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الصورة');
+    return data;
   },
 
   // Orders
@@ -800,7 +839,8 @@ export const api = {
   getPlatformSettings: async () => {
     try {
       const res = await fetch(`${API_BASE}/cms/settings`);
-      return res.json();
+      if (!res.ok) return null;
+      return await res.json();
     } catch {
       return null;
     }
@@ -865,5 +905,43 @@ export const api = {
     if (!res.ok) throw new Error(json.message || 'فشل جلب إحداثيات التتبع الحي');
     return json;
   },
+
+  // Notification Integrations (Telegram & Email)
+  testTelegramNotification: async (token, chatId) => {
+    const res = await fetch(`${API_BASE}/notifications/test-telegram`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ token, chatId }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'فشل إرسال رسالة التليجرام التجريبية');
+    return json;
+  },
+
+  testEmailNotification: async (email) => {
+    const res = await fetch(`${API_BASE}/notifications/test-email`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ email }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'فشل إرسال البريد الإلكتروني التجريبي');
+    return json;
+  },
+
+  getTelegramBotInfo: async () => {
+    const res = await fetch(`${API_BASE}/notifications/telegram-bot-info`, {
+      headers: getHeaders(true),
+    });
+    return res.json();
+  },
+
+  getTelegramUpdates: async () => {
+    const res = await fetch(`${API_BASE}/notifications/telegram-updates`, {
+      headers: getHeaders(true),
+    });
+    return res.json();
+  },
 };
+
 

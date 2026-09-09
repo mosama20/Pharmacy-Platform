@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { ImageUploadInput } from '../../common/ImageUploadInput';
 
 export const NewMediaModal = ({
   isOpen,
@@ -70,16 +71,12 @@ export const NewMediaModal = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              رابط الصورة المباشر (URL):
-            </label>
-            <input
-              type="url"
-              required
-              placeholder="https://images.unsplash.com/..."
+            <ImageUploadInput
+              label="صورة الوسائط:"
+              placeholder="ارفع ملف الصورة من جهازك أو اسحبه هنا"
               value={formData.url}
-              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono focus:outline-none focus:border-emerald-500"
+              onChange={(url) => setFormData({ ...formData, url })}
+              folder="media"
             />
           </div>
 

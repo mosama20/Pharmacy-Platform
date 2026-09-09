@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { PrescriptionsService } from './prescriptions.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -23,7 +24,7 @@ import {
 export class PrescriptionsController {
   constructor(private readonly rxService: PrescriptionsService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Post('upload')
   async upload(@Body() dto: UploadPrescriptionDto, @CurrentUser() user: any) {
     if (user) {
@@ -71,6 +72,11 @@ export class PrescriptionsController {
     @Body() dto: UpdatePrescriptionStatusDto,
     @CurrentUser() user: any,
   ) {
-    return this.rxService.updateStatus(id, dto.status as any, user);
+    return this.rxService.updateStatus(
+      id,
+      dto.status as any,
+      user,
+      dto.cancellationReason,
+    );
   }
 }

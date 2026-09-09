@@ -28,6 +28,7 @@ services:
       dockerfile: Dockerfile
     container_name: chefaa-backend
     restart: unless-stopped
+    user: "0:0"
     ports:
       - "5000:5000"
     environment:
@@ -35,6 +36,22 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:chefaa_secret_2026@postgres:5432/chefaa_db?schema=public
       - JWT_SECRET=chefaa_prod_secret_key_2026_super_secure_min_32_chars
+      - ALLOWED_ORIGINS=http://localhost,http://localhost:80,http://127.0.0.1,http://127.0.0.1:80,http://localhost:5173,http://localhost:3000
+      - TELEGRAM_BOT_TOKEN=8816040899:AAHn5t7WDimz6JudP27PccRPlwFuj8aDMHc
+      - TELEGRAM_CHAT_ID=8800720269
+      - TELEGRAM_ENABLED=true
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=465
+      - SMTP_USER=wep.osama5@gmail.com
+      - SMTP_PASS=rhqeevpuoovtmeic
+      - SMTP_FROM="صيدلية د. شيماء <wep.osama5@gmail.com>"
+      - ADMIN_NOTIFICATION_EMAIL=wep.osama5@gmail.com
+      - EMAIL_ENABLED=true
+      - CLOUDFLARE_R2_ACCOUNT_ID=219f8a0dc630f3dc7bcb7a5cbba58366
+      - CLOUDFLARE_R2_ACCESS_KEY_ID=861f980a4eb152ae6f86bdfc5a65f856
+      - CLOUDFLARE_R2_SECRET_ACCESS_KEY=a34214fc0c24708e00227bcd341d89900ebf4dad488df58a6da71de7de8fe7cc
+      - CLOUDFLARE_R2_BUCKET_NAME=pharmacy-uploads
+      - CLOUDFLARE_R2_PUBLIC_URL=https://pub-49bb0ad9dca84b0f8e8711dadae72756.r2.dev
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,6 +63,7 @@ services:
       start_period: 25s
     volumes:
       - chefaa-data:/app/data
+      - chefaa-uploads:/app/uploads
     networks:
       - chefaa-network
 
@@ -72,4 +90,6 @@ volumes:
   chefaa-data:
     driver: local
   chefaa-pgdata:
+    driver: local
+  chefaa-uploads:
     driver: local

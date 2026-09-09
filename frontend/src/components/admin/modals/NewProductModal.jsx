@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, PackagePlus, Tag, DollarSign, Layers } from 'lucide-react';
+import { ImageUploadInput } from '../../common/ImageUploadInput';
 
 export const NewProductModal = ({
   isOpen,
@@ -180,15 +181,13 @@ export const NewProductModal = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              رابط صورة المنتج (URL):
-            </label>
-            <input
-              type="url"
-              required
+            <ImageUploadInput
+              label="صورة الدواء / المنتج:"
+              placeholder="ارفع صورة المنتج من جهازك أو اسحبها هنا"
               value={formData.image}
-              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 font-mono"
+              onChange={(url) => setFormData({ ...formData, image: url })}
+              folder="products"
+              previewHeight="h-20"
             />
           </div>
 

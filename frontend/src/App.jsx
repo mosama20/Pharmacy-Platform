@@ -1,21 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CmsProvider } from './context/CmsContext';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { LocationProvider } from './context/LocationContext';
 import { StorefrontPortal } from './pages/StorefrontPortal';
+import { Home } from './pages/Home';
+import { CategoriesPage } from './pages/CategoriesPage';
+import { ProductDetailsPage } from './pages/ProductDetailsPage';
+import { CartPage } from './pages/CartPage';
+import { CheckoutPage } from './pages/CheckoutPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { StaffLogin } from './pages/StaffLogin';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [pathname]);
+  return null;
+}
+
 export function AppRoutes() {
   const [darkMode, setDarkMode] = useState(() => {
     return (
       localStorage.getItem('app_dark') === 'true' ||
-      localStorage.getItem('chefaa_dark') === 'true'
+      localStorage.getItem('chefaa-dark') === 'true'
     );
   });
 
@@ -42,12 +55,20 @@ export function AppRoutes() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
-        {/* 1. Public Storefront Portal for Patients and Customers (URL: /) */}
+        {/* 1. Public Storefront Portal with dedicated Product, Cart, and Checkout Pages */}
         <Route
           path="/"
           element={<StorefrontPortal darkMode={darkMode} setDarkMode={setDarkMode} />}
-        />
+        >
+          <Route index element={<Home />} />
+          <Route path="categories" element={<CategoriesPage />} />
+          <Route path="product/:id" element={<ProductDetailsPage />} />
+          <Route path="products/:id" element={<ProductDetailsPage />} />
+          <Route path="cart" element={<CartPage />} />
+          <Route path="checkout" element={<CheckoutPage />} />
+        </Route>
 
         {/* 2. Admin HQ Portal (URL: /admin and /admin/*) */}
         <Route
