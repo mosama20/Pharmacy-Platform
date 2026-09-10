@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, getRoleDefaultPath } from '../context/AuthContext';
 import { useCms } from '../context/CmsContext';
 import {
   Shield,
@@ -10,9 +10,8 @@ import {
   ArrowLeft,
   Loader2,
   Sparkles,
-  Stethoscope,
-  Truck,
-  CheckCircle2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export const StaffLogin = ({ defaultPortalTitle = 'الكادر الطبي والإداري', targetRole = null }) => {
@@ -21,12 +20,9 @@ export const StaffLogin = ({ defaultPortalTitle = 'الكادر الطبي وا�
   const { login, user, logout } = useAuth();
   const { settings } = useCms();
 
-  const [emailOrPhone, setEmailOrPhone] = useState(() => {
-    if (targetRole === 'PHARMACIST') return 'pharmacist@pharmacy.com';
-    if (targetRole === 'DELIVERY') return 'courier@pharmacy.com';
-    return 'admin@pharmacy.com';
-  });
-  const [password, setPassword] = useState('admin123');
+  const [emailOrPhone, setEmailOrPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -34,23 +30,20 @@ export const StaffLogin = ({ defaultPortalTitle = 'الكادر الطبي وا�
   const queryParams = new URLSearchParams(location.search);
   const redirectUrl = queryParams.get('redirect');
 
-  // If a customer was logged in, log out so we can log in as staff cleanly
+  // If a customer was logged in, log out so staff can log in cleanly
   useEffect(() => {
     if (user && user.role === 'CUSTOMER') {
       logout();
     }
   }, []);
 
-  const handleQuickFill = (email, pass) => {
-    setEmailOrPhone(email);
-    setPassword(pass);
-    setErrorMessage('');
-  };
-
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    if (!emailOrPhone.trim() || !password.trim()) {
-      setErrorMessage('يرجى ملء كافة الحقول المطلوبة');
+    const cleanIdentifier = emailOrPhone.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanIdentifier || !cleanPassword) {
+      setErrorMessage('يرجى إدخال البريد الإلكتروني أو الهاتف وكلمة المرور');
       return;
     }
 
@@ -58,35 +51,27 @@ export const StaffLogin = ({ defaultPortalTitle = 'الكادر الطبي وا�
     setErrorMessage('');
 
     try {
-      const data = await login(emailOrPhone.trim(), password);
+      const data = await login(cleanIdentifier, cleanPassword);
       const role = data.user?.role;
 
-      // Check if target portal requires a specific role
+      // Check if this login route expects a specific role
       if (targetRole && role !== targetRole && role !== 'ADMIN') {
-        setErrorMessage(`هذا الحساب مخصص لرتبة (${role}) ولا يمتلك صلاحية دخول بوابة (${defaultPortalTitle}).`);
+        setErrorMessage(`هذا الحساب مسجل برتبة (${role}) ولا يمتلك صلاحية الدخول لبوابة (${defaultPortalTitle}).`);
         setLoading(false);
         return;
       }
 
-      // If redirect param exists, go there
+      // If redirect param exists, navigate to it
       if (redirectUrl) {
         window.location.href = redirectUrl;
         return;
       }
 
-      // Role-based auto navigation
-      if (role === 'ADMIN') {
-        window.location.href = '/admin';
-      } else if (role === 'PHARMACIST') {
-        window.location.href = '/pharmacy';
-      } else if (role === 'DELIVERY') {
-        window.location.href = '/delivery';
-      } else {
-        window.location.href = '/';
-      }
+      // Role-based auto navigation using standard mapper
+      window.location.href = getRoleDefaultPath(role);
     } catch (err) {
       console.error('Staff Login Error:', err);
-      setErrorMessage(err.message || 'فشل تسجيل الدخول. تأكد من صحة البيانات وحالة الحساب.');
+      setErrorMessage(err.message || 'بيانات الدخول غير صحيحة أو الحساب غير نشط.');
     } finally {
       setLoading(false);
     }
@@ -110,7 +95,7 @@ export const StaffLogin = ({ defaultPortalTitle = 'الكادر الطبي وا�
             {settings.websiteName || 'الصيدلية الذكية'}
           </h1>
           <p className="text-xs text-slate-400 font-medium">
-            بوابة تسجيل دخول {defaultPortalTitle} المعتمدة
+            بوابة تسجيل دخول {defaultPortalTitle}
           </p>
         </div>
 
@@ -118,10 +103,10 @@ export const StaffLogin = ({ defaultPortalTitle = 'الكادر الطبي وا�
         <div className="p-8 rounded-3xl bg-slate-900/90 backdrop-blur-xl border border-slate-800 shadow-2xl space-y-6">
           <div className="border-b border-slate-800/80 pb-4">
             <h2 className="text-sm font-bold text-slate-200">
-              تسجيل الدخول الآمن (JWT Protected)
+              تسجيل الدخول الآمن للمنظومة
             </h2>
             <p className="text-[11px] text-slate-400 mt-1">
-              أدخل بيانات حسابك المعتمد للدخول إلى لوحة العمليات الخاصة بك.
+              أدخل بيانات حسابك المعتمد للدخول إلى مساحة العمل الخاصة بك.
             </p>
           </div>
 
@@ -136,14 +121,15 @@ export const StaffLogin = ({ defaultPortalTitle = 'الكادر الطبي وا�
             {/* Username / Email */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-300 block">
-                البريد الإلكتروني أو اسم المستخدم أو الهاتف
+                البريد الإلكتروني أو رقم الهاتف
               </label>
               <div className="relative">
                 <input
                   type="text"
                   dir="ltr"
                   required
-                  placeholder="admin@pharmacy.com أو admin"
+                  autoComplete="username"
+                  placeholder="name@example.com أو 01xxxxxxxxx"
                   value={emailOrPhone}
                   onChange={(e) => setEmailOrPhone(e.target.value)}
                   className="w-full pl-4 pr-10 py-2.5 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
@@ -159,15 +145,24 @@ export const StaffLogin = ({ defaultPortalTitle = 'الكادر الطبي وا�
               </label>
               <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   dir="ltr"
                   required
+                  autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
                 />
                 <Lock className="w-4 h-4 text-slate-500 absolute right-3.5 top-3" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute left-3.5 top-3 text-slate-500 hover:text-slate-300 transition-colors"
+                  title={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -190,36 +185,6 @@ export const StaffLogin = ({ defaultPortalTitle = 'الكادر الطبي وا�
               )}
             </button>
           </form>
-
-          {/* Quick Helper Credentials for Testing */}
-          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2">
-            <span className="text-[11px] font-bold text-slate-300 block">
-              💡 الحسابات الافتراضية المعتمدة (انقر للتعبئة السريعة):
-            </span>
-            <div className="grid grid-cols-3 gap-1.5 text-[10px]">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('admin@pharmacy.com', 'admin123')}
-                className="p-1.5 rounded-lg bg-purple-950/50 border border-purple-800/60 text-purple-300 hover:bg-purple-900/60 font-bold transition-all text-center"
-              >
-                مدير (Admin)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('pharmacist@pharmacy.com', 'admin123')}
-                className="p-1.5 rounded-lg bg-teal-950/50 border border-teal-800/60 text-teal-300 hover:bg-teal-900/60 font-bold transition-all text-center"
-              >
-                صيدلي (Pharm)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('courier@pharmacy.com', 'admin123')}
-                className="p-1.5 rounded-lg bg-amber-950/50 border border-amber-800/60 text-amber-300 hover:bg-amber-900/60 font-bold transition-all text-center"
-              >
-                مندوب (Courier)
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Back to Public Store link */}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { ShieldAlert, ArrowRight, LogOut, Loader2, ShieldCheck } from 'lucide-react';
+import { useAuth, getRoleDefaultPath } from '../../context/AuthContext';
+import { ShieldAlert, ArrowRight, LogOut, Loader2, ShieldCheck, LayoutDashboard } from 'lucide-react';
 
 export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, token, loading, logout } = useAuth();
@@ -16,7 +16,7 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     );
   }
 
-  // Not logged in -> Redirect to staff login
+  // Not logged in -> Redirect to staff login preserving redirect target
   if (!token || !user) {
     return <Navigate to={`/staff/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
@@ -48,19 +48,37 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     );
   }
 
-  // Role check: if user is CUSTOMER trying to access admin/staff portal
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+  // Role check: if user role is not among allowedRoles
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role) && user.role !== 'ADMIN') {
+    const myPortalPath = getRoleDefaultPath(user.role);
+    const myPortalName =
+      user.role === 'PHARMACIST'
+        ? 'بوابة الصيدلي والمراجعة الطبية'
+        : user.role === 'DELIVERY'
+        ? 'بوابة كابتن التوصيل والرحلات'
+        : 'متجر الأدوية الرئيسي';
+
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4 font-cairo">
         <div className="max-w-md w-full p-8 rounded-3xl bg-slate-900 border border-amber-500/30 text-center space-y-5 shadow-2xl">
           <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
             <ShieldAlert className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-black text-amber-400">تنبيه الصلاحيات</h2>
+          <h2 className="text-xl font-black text-amber-400">تنبيه الصلاحيات الأمنية</h2>
           <p className="text-xs text-slate-300 leading-relaxed">
-            أنت مسجل حالياً بحساب <strong className="text-amber-300">({user.name || user.email})</strong> بصلاحية <strong>({user.role})</strong>، وهذه المنطقة مخصصة لإدارة المنظومة فقط.
+            أنت مسجل حالياً بحساب <strong className="text-amber-300">({user.name || user.email})</strong> بصلاحية <strong>({user.role})</strong>، وهذه المنطقة غير مصرح بها لحسابك الحالي.
           </p>
           <div className="space-y-2 pt-2">
+            {myPortalPath !== '/' && (
+              <a
+                href={myPortalPath}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>الانتقال إلى {myPortalName}</span>
+              </a>
+            )}
+
             <button
               onClick={() => {
                 logout();
@@ -69,8 +87,9 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20"
             >
               <ShieldCheck className="w-4 h-4" />
-              <span>تسجيل الدخول كمسؤول أو مدير النظام (Admin)</span>
+              <span>تسجيل الدخول بحساب مسؤول (Admin)</span>
             </button>
+
             <a
               href="/"
               className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2"

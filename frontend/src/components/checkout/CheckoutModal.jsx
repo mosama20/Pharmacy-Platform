@@ -101,10 +101,18 @@ export const CheckoutModal = ({ isOpen, onClose, onOpenTracking }) => {
         },
         deliveryType,
         paymentMethod,
-        items: cartItems,
+        items: cartItems.map((item) => ({
+          productId: item.productId || item.id,
+          nameAr: item.nameAr || '',
+          nameEn: item.nameEn || '',
+          price: Number(item.price) || 0,
+          quantity: Number(item.quantity) || 1,
+          image: item.image || '',
+        })),
         promoCode: appliedPromo || undefined,
         notes: notes.trim(),
       };
+
 
       const res = await api.createOrder(orderPayload);
       const created = res.order || res;

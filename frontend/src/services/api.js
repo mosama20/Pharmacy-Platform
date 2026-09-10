@@ -1,4 +1,5 @@
 import fallbackProducts from '../data/fallbackProducts.json';
+import { authStorage } from './authStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE || (
   typeof window !== 'undefined'
@@ -59,12 +60,93 @@ const filterFallbackProducts = (params = {}) => {
   return list;
 };
 
+// Mutex promise to handle concurrent 401s without multiple refresh requests
+let refreshPromise = null;
+
+export const apiFetch = async (url, options = {}, isAuth = true) => {
+  const fullUrl = url.startsWith('http')
+    ? url
+    : `${API_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+
+  const headers = {
+    ...(options.headers || {}),
+  };
+
+  if (!(options.body instanceof FormData) && !headers['Content-Type'] && !headers['content-type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  if (isAuth) {
+    const token = authStorage.getAccessToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  let res;
+  try {
+    res = await fetch(fullUrl, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    throw new Error('تعذر الاتصال بالخادم، يرجى التأكد من اتصال الإنترنت');
+  }
+
+  // 401 Interception for authenticated endpoints
+  const isAuthEndpoint = fullUrl.includes('/auth/login') || fullUrl.includes('/auth/refresh');
+  if (res.status === 401 && isAuth && !isAuthEndpoint) {
+    const refreshToken = authStorage.getRefreshToken();
+    if (refreshToken) {
+      try {
+        if (!refreshPromise) {
+          refreshPromise = (async () => {
+            const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken }),
+            });
+            if (!refreshRes.ok) {
+              throw new Error('Refresh token invalid or expired');
+            }
+            const data = await refreshRes.json();
+            authStorage.setSession({
+              accessToken: data.accessToken,
+              refreshToken: data.refreshToken,
+              user: data.user,
+            });
+            return data.accessToken;
+          })().finally(() => {
+            refreshPromise = null;
+          });
+        }
+
+        const newAccessToken = await refreshPromise;
+        headers['Authorization'] = `Bearer ${newAccessToken}`;
+
+        return await fetch(fullUrl, {
+          ...options,
+          headers,
+        });
+      } catch (refreshErr) {
+        console.warn('[apiFetch] Silent token refresh failed. Terminating session:', refreshErr);
+        authStorage.notifySessionExpired();
+        return res;
+      }
+    } else {
+      authStorage.notifySessionExpired();
+    }
+  }
+
+  return res;
+};
+
 const getHeaders = (isAuth = true) => {
   const headers = {
     'Content-Type': 'application/json',
   };
   if (isAuth) {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('chefaa_token');
+    const token = authStorage.getAccessToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -74,36 +156,107 @@ const getHeaders = (isAuth = true) => {
 
 export const api = {
   // Auth
-  login: async (email, password) => {
+  login: async (emailOrPhone, password) => {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
-      headers: getHeaders(false),
-      body: JSON.stringify({ email, password }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emailOrPhone, password }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'فشل تسجيل الدخول');
+    if (data.accessToken) {
+      authStorage.setSession({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user,
+      });
+    }
     return data;
   },
 
   register: async (userData) => {
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
-      headers: getHeaders(false),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'فشل إنشاء الحساب');
+    if (data.accessToken) {
+      authStorage.setSession({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user,
+      });
+    }
     return data;
   },
 
-  getProfile: async () => {
-    const res = await fetch(`${API_BASE}/auth/profile`, {
-      headers: getHeaders(true),
+  refreshToken: async (token) => {
+    const rt = token || authStorage.getRefreshToken();
+    if (!rt) throw new Error('لا يوجد رمز تحديث متاح');
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: rt }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'فشل جلب الملف الشخصي');
+    if (!res.ok) throw new Error(data.message || 'فشل تجديد الجلسة');
+    authStorage.setSession({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      user: data.user,
+    });
     return data;
   },
+
+  logout: async () => {
+    const refreshToken = authStorage.getRefreshToken();
+    try {
+      await apiFetch('/auth/logout', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      }, true);
+    } catch (e) {
+      console.warn('[api.logout] Logout request failed or network offline:', e);
+    } finally {
+      authStorage.clearSession();
+    }
+    return { success: true };
+  },
+
+  getProfile: async () => {
+    const res = await apiFetch('/auth/profile', {}, true);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل جلب الملف الشخصي');
+    if (data) {
+      authStorage.updateUser(data);
+    }
+    return data;
+  },
+
+  forgotPassword: async (email) => {
+    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل إرسال رابط استعادة كلمة المرور');
+    return data;
+  },
+
+  resetPassword: async (token, newPassword) => {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل إعادة ضبط كلمة المرور');
+    return data;
+  },
+
 
   // Products
   getProducts: async (params = {}) => {
@@ -489,31 +642,17 @@ export const api = {
       } catch (_) {}
       return mockOrder;
     }
-    try {
-      const res = await fetch(`${API_BASE}/orders`, {
-        method: 'POST',
-        headers: getHeaders(true),
-        body: JSON.stringify(orderData),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'فشل تأكيد الطلب');
-      return data;
-    } catch (e) {
-      console.warn('API error, simulating order for demo:', e);
-      const mockOrder = {
-        id: `ord_demo_${Date.now()}`,
-        orderNumber: `CHF-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-        ...orderData,
-        status: 'PENDING',
-        createdAt: new Date().toISOString(),
-      };
-      try {
-        const existing = JSON.parse(localStorage.getItem('my_orders') || '[]');
-        existing.unshift(mockOrder);
-        localStorage.setItem('my_orders', JSON.stringify(existing));
-      } catch (_) {}
-      return mockOrder;
+    const res = await apiFetch('/orders', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    }, true);
+
+    const data = await res.json();
+    if (!res.ok) {
+      const errMsg = Array.isArray(data.message) ? data.message.join(', ') : (data.message || 'فشل تأكيد الطلب');
+      throw new Error(errMsg);
     }
+    return data;
   },
 
   getAllOrders: async (params = {}) => {
@@ -521,13 +660,12 @@ export const api = {
     if (params.status && params.status !== 'ALL') query.append('status', params.status);
     if (params.search) query.append('search', params.search);
     try {
-      const res = await fetch(`${API_BASE}/orders?${query.toString()}`, {
-        headers: getHeaders(true),
-      });
+      const res = await apiFetch(`/orders?${query.toString()}`, {}, true);
       if (res.ok) return await res.json();
     } catch (_) {}
     return [];
   },
+
 
   getMyOrders: async () => {
     const res = await fetch(`${API_BASE}/orders/my-orders`, {
@@ -580,16 +718,13 @@ export const api = {
   // Staff
   getAllStaff: async (role) => {
     const query = role ? `?role=${role}` : '';
-    const res = await fetch(`${API_BASE}/staff${query}`, {
-      headers: getHeaders(true),
-    });
+    const res = await apiFetch(`/staff${query}`);
     return res.json();
   },
 
   createStaff: async (staffData) => {
-    const res = await fetch(`${API_BASE}/staff`, {
+    const res = await apiFetch('/staff', {
       method: 'POST',
-      headers: getHeaders(true),
       body: JSON.stringify(staffData),
     });
     const data = await res.json();
@@ -598,9 +733,8 @@ export const api = {
   },
 
   updateStaff: async (id, staffData) => {
-    const res = await fetch(`${API_BASE}/staff/${id}`, {
+    const res = await apiFetch(`/staff/${id}`, {
       method: 'PUT',
-      headers: getHeaders(true),
       body: JSON.stringify(staffData),
     });
     const data = await res.json();
@@ -609,9 +743,8 @@ export const api = {
   },
 
   deleteStaff: async (id) => {
-    const res = await fetch(`${API_BASE}/staff/${id}`, {
+    const res = await apiFetch(`/staff/${id}`, {
       method: 'DELETE',
-      headers: getHeaders(true),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'فشل حذف الموظف');
@@ -624,33 +757,27 @@ export const api = {
     if (role && role !== 'ALL') params.append('role', role);
     if (status && status !== 'ALL') params.append('status', status);
     if (q) params.append('q', q);
-    const res = await fetch(`${API_BASE}/users?${params.toString()}`, {
-      headers: getHeaders(true),
-    });
+    const res = await apiFetch(`/users?${params.toString()}`);
     return res.json();
   },
 
   getAllCustomers: async (search) => {
     const query = search ? `?q=${search}` : '';
-    const res = await fetch(`${API_BASE}/users/customers${query}`, {
-      headers: getHeaders(true),
-    });
+    const res = await apiFetch(`/users/customers${query}`);
     return res.json();
   },
 
   updateCustomerStatus: async (id, status) => {
-    const res = await fetch(`${API_BASE}/users/${id}/status`, {
+    const res = await apiFetch(`/users/${id}/status`, {
       method: 'PATCH',
-      headers: getHeaders(true),
       body: JSON.stringify({ status }),
     });
     return res.json();
   },
 
   updateUserRole: async (id, role) => {
-    const res = await fetch(`${API_BASE}/users/${id}/role`, {
+    const res = await apiFetch(`/users/${id}/role`, {
       method: 'PATCH',
-      headers: getHeaders(true),
       body: JSON.stringify({ role }),
     });
     const data = await res.json();
@@ -659,9 +786,8 @@ export const api = {
   },
 
   resetUserPassword: async (id, password) => {
-    const res = await fetch(`${API_BASE}/users/${id}/reset-password`, {
+    const res = await apiFetch(`/users/${id}/reset-password`, {
       method: 'POST',
-      headers: getHeaders(true),
       body: JSON.stringify({ password }),
     });
     const data = await res.json();
@@ -670,9 +796,8 @@ export const api = {
   },
 
   deleteUser: async (id) => {
-    const res = await fetch(`${API_BASE}/users/${id}`, {
+    const res = await apiFetch(`/users/${id}`, {
       method: 'DELETE',
-      headers: getHeaders(true),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'فشل حذف الحساب');

@@ -17,21 +17,35 @@ export class StaffService {
   }
 
   async createStaff(dto: CreateStaffDto) {
-    const existing = this.db.users.find(
+    const emailNorm = dto.email.trim().toLowerCase();
+    const phoneClean = dto.phone.trim();
+
+    const existingInMem = this.db.users.find(
       (u) =>
-        u.email.toLowerCase() === dto.email.toLowerCase() ||
-        u.phone === dto.phone,
+        u.email.toLowerCase() === emailNorm ||
+        u.phone === phoneClean,
     );
-    if (existing) {
-      throw new BadRequestException('البريد الإلكتروني أو رقم الهاتف مستخدم لموظف آخر');
+
+    const existingInDb = await this.db.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: emailNorm, mode: 'insensitive' } },
+          { phone: phoneClean },
+        ],
+        deletedAt: null,
+      },
+    });
+
+    if (existingInMem || existingInDb) {
+      throw new BadRequestException('البريد الإلكتروني أو رقم الهاتف مستخدم لموظف آخر بالفعل');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const newStaff: User = {
       id: `usr_staff_${uuidv4().substring(0, 8)}`,
-      name: dto.name,
-      email: dto.email,
-      phone: dto.phone,
+      name: dto.name.trim(),
+      email: emailNorm,
+      phone: phoneClean,
       password: hashedPassword,
       role: dto.role,
       status: 'ACTIVE',
@@ -41,14 +55,33 @@ export class StaffService {
       createdAt: new Date().toISOString(),
     };
 
+    // 1. Create in PostgreSQL so staff can log in immediately
+    await this.db.prisma.user.create({
+      data: {
+        id: newStaff.id,
+        name: newStaff.name,
+        email: newStaff.email,
+        phone: newStaff.phone,
+        password: hashedPassword,
+        role: newStaff.role as any,
+        status: 'ACTIVE',
+        shift: newStaff.shift,
+        nationalId: newStaff.nationalId,
+        city: newStaff.city,
+      },
+    });
+
+    // 2. Add to in-memory list & JSON backup
     this.db.users.push(newStaff);
     this.db.persist();
+
     const { password, ...safeStaff } = newStaff;
     return {
       message: 'تم إنشاء حساب الموظف وتحديد صلاحياته بنجاح',
       staff: safeStaff,
     };
   }
+
 
   async updateStaff(
     id: string,

@@ -180,14 +180,23 @@ export class AuthService {
     }
   }
 
-  async logout(userId: string) {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { refreshTokenHash: null },
-    });
+  async logout(userId?: string, refreshToken?: string) {
+    if (userId) {
+      await this.prisma.user.updateMany({
+        where: { id: userId },
+        data: { refreshTokenHash: null },
+      });
+    } else if (refreshToken) {
+      const hash = this.hashToken(refreshToken);
+      await this.prisma.user.updateMany({
+        where: { refreshTokenHash: hash },
+        data: { refreshTokenHash: null },
+      });
+    }
 
     return { message: 'تم تسجيل الخروج بنجاح وإلغاء تنشيط الجلسة' };
   }
+
 
   async registerCustomer(dto: {
     name: string;

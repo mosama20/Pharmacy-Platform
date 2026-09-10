@@ -149,42 +149,74 @@ export class OrdersService {
       throw new BadRequestException('السلة فارغة، يرجى إضافة أدوية أو منتجات للطلب');
     }
 
+    // Normalize delivery address if needed
+    if (!dto.deliveryAddress) {
+      if (typeof dto.address === 'string' && dto.address.trim()) {
+        dto.deliveryAddress = {
+          governorate: 'القاهرة',
+          city: 'القاهرة',
+          street: dto.address.trim(),
+        };
+      } else if (dto.address && typeof dto.address === 'object') {
+        dto.deliveryAddress = {
+          governorate: dto.address.governorate || 'القاهرة',
+          city: dto.address.city || 'القاهرة',
+          street: dto.address.street || '',
+          building: dto.address.building || '',
+          floor: dto.address.floor || '',
+          apartment: dto.address.apartment || '',
+          landmark: dto.address.landmark || '',
+        };
+      } else {
+        dto.deliveryAddress = {
+          governorate: 'القاهرة',
+          city: 'القاهرة',
+          street: 'العنوان المسجل للطلب',
+        };
+      }
+    }
+
+    if (!dto.notes && dto.deliveryNotes) {
+      dto.notes = dto.deliveryNotes;
+    }
+
     // 1. Server-Side Price Calculation & Stock Validation
     let verifiedSubtotal = 0;
     const verifiedItems: OrderItem[] = [];
 
     for (const item of dto.items) {
-      const product = this.db.products.find((p) => p.id === item.productId);
-      if (!product) {
-        throw new BadRequestException(`المنتج المطلوب غير متوفر بالصيدلية (معرف: ${item.productId})`);
+      const prodId = item.productId || item.id;
+      let product = this.db.products.find((p) => p.id === prodId || p.id === item.productId);
+      if (!product && item.nameAr) {
+        product = this.db.products.find((p) => p.nameAr === item.nameAr);
       }
 
       const qty = Number(item.quantity);
       if (qty < 1) {
-        throw new BadRequestException(`كمية غير صالحة للمنتج (${product.nameAr})`);
+        throw new BadRequestException(`كمية غير صالحة للمنتج (${item.nameAr || prodId})`);
       }
 
-      // Stock Check
-      if (product.stock !== undefined && product.stock < qty) {
+      // Stock Check if product exists in database
+      if (product && product.stock !== undefined && product.stock < qty) {
         throw new BadRequestException(
           `الكمية المطلوبة من دواء (${product.nameAr}) غير متوفرة حالياً في المخزون (المتبقي: ${product.stock ?? 0})`,
         );
       }
 
-      // Always use product.price from authoritative database
-      const unitPrice = Number(product.price);
+      const unitPrice = product ? Number(product.price) : Number(item.price || 0);
       verifiedItems.push({
-        productId: product.id,
-        nameAr: product.nameAr,
-        nameEn: product.nameEn,
+        productId: product ? product.id : prodId,
+        nameAr: product ? product.nameAr : (item.nameAr || 'منتج صيدلية'),
+        nameEn: product ? product.nameEn : (item.nameEn || ''),
         price: unitPrice,
         quantity: qty,
-        image: product.image,
-        isPrescriptionRequired: product.isPrescriptionRequired,
+        image: product ? product.image : (item.image || ''),
+        isPrescriptionRequired: product ? Boolean(product.isPrescriptionRequired) : Boolean(item.isPrescriptionRequired),
       });
 
       verifiedSubtotal += unitPrice * qty;
     }
+
 
     // 2. Decrement Stock Atomically
     for (const item of verifiedItems) {

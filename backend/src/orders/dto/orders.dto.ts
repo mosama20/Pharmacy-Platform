@@ -6,6 +6,7 @@ import {
   IsArray,
   ValidateNested,
   IsNumber,
+  IsBoolean,
   Min,
   Max,
   IsEmail,
@@ -67,6 +68,10 @@ export class DeliveryAddressDto {
 
 export class OrderItemDto {
   @IsString()
+  @IsOptional()
+  id?: string;
+
+  @IsString()
   @IsNotEmpty()
   productId: string;
 
@@ -78,9 +83,21 @@ export class OrderItemDto {
   @IsOptional()
   nameEn?: string;
 
+  @IsString()
+  @IsOptional()
+  activeIngredient?: string;
+
   @IsNumber()
   @IsOptional()
   price?: number;
+
+  @IsNumber()
+  @IsOptional()
+  originalPrice?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isPrescriptionRequired?: boolean;
 
   @IsNumber()
   @Min(1)
@@ -108,14 +125,21 @@ export class CreateOrderDto {
   @IsNotEmpty()
   customerPhone: string;
 
-  @IsEmail()
+  @IsString()
   @IsOptional()
   customerEmail?: string;
 
   @ValidateNested()
   @Type(() => DeliveryAddressDto)
-  @IsNotEmpty()
-  deliveryAddress: DeliveryAddressDto;
+  @IsOptional()
+  deliveryAddress?: DeliveryAddressDto;
+
+  @IsOptional()
+  address?: any;
+
+  @IsString()
+  @IsOptional()
+  deliveryNotes?: string;
 
   @IsEnum(DeliveryTypeEnum)
   @IsOptional()
@@ -133,6 +157,23 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
   items: OrderItemDto[];
+
+  @IsNumber()
+  @IsOptional()
+  subtotal?: number;
+
+  @IsNumber()
+  @IsOptional()
+  deliveryFee?: number;
+
+  @IsNumber()
+  @IsOptional()
+  discount?: number;
+
+  @IsNumber()
+  @IsOptional()
+  total?: number;
+
 
   @IsString()
   @IsOptional()

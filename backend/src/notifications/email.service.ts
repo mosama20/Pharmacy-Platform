@@ -236,7 +236,123 @@ export class EmailService {
     }
   }
 
+  async sendAdminOrderAlert(order: EmailOrderDetails): Promise<{ success: boolean; error?: string }> {
+    const adminEmail =
+      this.db.settings?.adminNotificationEmail ||
+      process.env.ADMIN_NOTIFICATION_EMAIL ||
+      'wep.osama5@gmail.com';
+
+    const transporter = this.getTransporter();
+    const storeName = this.db.settings?.websiteName || 'صيدلية د. شيماء';
+
+    const itemsList = (order.items || [])
+      .map(
+        (it) => `<li style="margin-bottom: 6px;"><strong>${it.nameAr || it.nameEn || 'صنف'}</strong> × ${it.quantity} (${(it.price * it.quantity).toFixed(2)} ج.م)</li>`
+      )
+      .join('');
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="utf-8"></head>
+<body style="font-family: sans-serif; background: #f8fafc; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0;">
+    <h2 style="color: #059669; border-bottom: 2px solid #10b981; padding-bottom: 8px;">📦 إشعار طلب دواء جديد #${order.orderNumber}</h2>
+    <p>تم استلام طلب جديد في <strong>${storeName}</strong> بالبيانات التالية:</p>
+    <ul style="line-height: 1.8;">
+      <li><strong>اسم العميل:</strong> ${order.customerName}</li>
+      <li><strong>رقم الهاتف:</strong> <a href="tel:${order.customerPhone}">${order.customerPhone}</a></li>
+      <li><strong>عنوان التوصيل:</strong> ${order.deliveryAddress?.governorate || ''} - ${order.deliveryAddress?.city || ''} - ${order.deliveryAddress?.street || ''}</li>
+      <li><strong>طريقة الدفع:</strong> ${order.paymentMethod || 'الدفع عند الاستلام'}</li>
+      <li><strong>المبلغ الإجمالي:</strong> <span style="color: #059669; font-weight: bold;">${order.total} ج.م</span></li>
+    </ul>
+    <h3>الأدوية والمنتجات المطلوبة:</h3>
+    <ul style="line-height: 1.6;">${itemsList}</ul>
+    ${order.notes ? `<p><strong>ملاحظات العميل:</strong> ${order.notes}</p>` : ''}
+    <p style="margin-top: 20px; font-size: 12px; color: #64748b;">هذا الإشعار التلقائي تم إرساله من منصة ${storeName} لمتابعة الطلبات وتجهيزها فوراً.</p>
+  </div>
+</body>
+</html>
+    `;
+
+    if (!transporter) {
+      this.logger.log(`[MOCK EMAIL] Admin order alert to: ${adminEmail} | #${order.orderNumber}`);
+      return { success: true };
+    }
+
+    try {
+      await transporter.sendMail({
+        from: this.getFromAddress(),
+        to: adminEmail,
+        subject: `🔔 طلب جديد #${order.orderNumber} من ${order.customerName} (${order.total} ج.م)`,
+        html: htmlContent,
+      });
+      this.logger.log(`Admin order notification email sent to ${adminEmail}`);
+      return { success: true };
+    } catch (err: any) {
+      this.logger.error(`Failed to send admin order alert email: ${err.message}`);
+      return { success: false, error: err.message };
+    }
+  }
+
+  async sendAdminPrescriptionAlert(rx: {
+    id: string;
+    customerName: string;
+    customerPhone: string;
+    customerAddress?: string;
+    notes?: string;
+    imageUrl?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    const adminEmail =
+      this.db.settings?.adminNotificationEmail ||
+      process.env.ADMIN_NOTIFICATION_EMAIL ||
+      'wep.osama5@gmail.com';
+
+    const transporter = this.getTransporter();
+    const storeName = this.db.settings?.websiteName || 'صيدلية د. شيماء';
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="utf-8"></head>
+<body style="font-family: sans-serif; background: #f8fafc; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0;">
+    <h2 style="color: #7c3aed; border-bottom: 2px solid #8b5cf6; padding-bottom: 8px;">📋 إشعار روشتة طبية جديدة #${rx.id}</h2>
+    <p>قام مريض برفع روشتة جديدة في <strong>${storeName}</strong> تحتاج مراجعة وتسعير:</p>
+    <ul style="line-height: 1.8;">
+      <li><strong>اسم المريض:</strong> ${rx.customerName}</li>
+      <li><strong>رقم الهاتف:</strong> <a href="tel:${rx.customerPhone}">${rx.customerPhone}</a></li>
+      <li><strong>العنوان:</strong> ${rx.customerAddress || 'غير محدد'}</li>
+      ${rx.notes ? `<li><strong>ملاحظات المريض:</strong> ${rx.notes}</li>` : ''}
+    </ul>
+    ${rx.imageUrl ? `<p style="margin-top: 15px;"><a href="${rx.imageUrl}" target="_blank" style="display: inline-block; padding: 10px 18px; background: #7c3aed; color: #fff; border-radius: 8px; text-decoration: none; font-weight: bold;">🔍 فتح ومعاينة صورة الروشتة</a></p>` : ''}
+  </div>
+</body>
+</html>
+    `;
+
+    if (!transporter) {
+      this.logger.log(`[MOCK EMAIL] Admin prescription alert to: ${adminEmail} | #${rx.id}`);
+      return { success: true };
+    }
+
+    try {
+      await transporter.sendMail({
+        from: this.getFromAddress(),
+        to: adminEmail,
+        subject: `📋 روشتة طبية جديدة #${rx.id} - ${rx.customerName}`,
+        html: htmlContent,
+      });
+      this.logger.log(`Admin prescription notification email sent to ${adminEmail}`);
+      return { success: true };
+    } catch (err: any) {
+      this.logger.error(`Failed to send admin prescription alert email: ${err.message}`);
+      return { success: false, error: err.message };
+    }
+  }
+
   async sendTestEmail(targetEmail: string): Promise<{ success: boolean; error?: string }> {
+
     const transporter = this.getTransporter();
     if (!transporter) {
       return {

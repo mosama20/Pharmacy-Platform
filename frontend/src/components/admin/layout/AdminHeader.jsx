@@ -5,16 +5,13 @@ import {
   Sun,
   Moon,
   Store,
-  Bell,
-  Search,
   Shield,
   Stethoscope,
   Truck,
   Headphones,
-  Check,
-  ChevronDown,
   User,
   LogOut,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { AdminBreadcrumbs } from './AdminBreadcrumbs';
@@ -28,8 +25,7 @@ export const AdminHeader = ({
   loading,
   onBackToStore,
 }) => {
-  const { user, login, logout } = useAuth();
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const { user, logout } = useAuth();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
 
@@ -45,48 +41,47 @@ export const AdminHeader = ({
     }
   };
 
-  const roles = [
-    {
-      role: 'ADMIN',
-      name: 'مدير النظام (Admin)',
-      email: 'admin@pharmacy.com',
-      icon: Shield,
-      color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/40',
-      defaultTab: 'orders',
-    },
-    {
-      role: 'PHARMACIST',
-      name: 'صيدلي مراجع (Pharmacist)',
-      email: 'pharmacist@pharmacy.com',
-      icon: Stethoscope,
-      color: 'text-teal-600 bg-teal-50 dark:bg-teal-950/40',
-      defaultTab: 'prescriptions',
-    },
-    {
-      role: 'DELIVERY',
-      name: 'مندوب توصيل (Courier)',
-      email: 'courier@pharmacy.com',
-      icon: Truck,
-      color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/40',
-      defaultTab: 'courier',
-    },
-    {
-      role: 'SUPPORT',
-      name: 'خدمة العملاء (Support)',
-      email: 'support@pharmacy.com',
-      icon: Headphones,
-      color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/40',
-      defaultTab: 'orders',
-    },
-  ];
+  const getRoleConfig = (role) => {
+    switch (role) {
+      case 'ADMIN':
+        return {
+          name: 'مدير المنظومة (Admin)',
+          icon: Shield,
+          color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800',
+        };
+      case 'PHARMACIST':
+        return {
+          name: 'صيدلي مراجع (Pharmacist)',
+          icon: Stethoscope,
+          color: 'text-teal-600 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800',
+        };
+      case 'DELIVERY':
+        return {
+          name: 'كابتن توصيل (Courier)',
+          icon: Truck,
+          color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800',
+        };
+      case 'SUPPORT':
+        return {
+          name: 'خدمة العملاء (Support)',
+          icon: Headphones,
+          color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800',
+        };
+      default:
+        return {
+          name: 'كادر طبي / إداري',
+          icon: Shield,
+          color: 'text-slate-600 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+        };
+    }
+  };
 
-  const currentRoleObj = roles.find((r) => r.role === user?.role) || roles[0];
-  const CurrentRoleIcon = currentRoleObj.icon;
+  const roleConfig = getRoleConfig(user?.role);
+  const RoleIcon = roleConfig.icon;
 
-  const handleSwitchRole = async (r) => {
-    setIsRoleDropdownOpen(false);
-    await login(r.email, 'admin123');
-    setActiveTab(r.defaultTab);
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = '/staff/login';
   };
 
   return (
@@ -95,7 +90,7 @@ export const AdminHeader = ({
       <div className="flex items-center gap-3">
         <button
           onClick={() => setMobileOpen(true)}
-          className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden"
+          className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden cursor-pointer"
           aria-label="فتح القائمة الجانبية"
         >
           <Menu className="w-5 h-5" />
@@ -110,54 +105,12 @@ export const AdminHeader = ({
         </div>
       </div>
 
-      {/* Right side: Quick Actions, Role Switcher, Refresh, Theme, User */}
+      {/* Right side: Role badge, Live refresh, Theme toggle, Store button, User profile */}
       <div className="flex items-center gap-2 md:gap-3">
-        {/* Instant Role Switcher Dropdown (for testing and demos) */}
-        <div className="relative">
-          <button
-            onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
-            title="تبديل الدور والصلاحيات للاختبار"
-          >
-            <CurrentRoleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="hidden md:inline">{currentRoleObj.name}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </button>
-
-          {isRoleDropdownOpen && (
-            <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-              <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700/60 mb-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  تجربة صلاحيات الأدوار:
-                </span>
-              </div>
-              <div className="space-y-1">
-                {roles.map((r) => {
-                  const Icon = r.icon;
-                  const isSelected = r.role === user?.role;
-                  return (
-                    <button
-                      key={r.role}
-                      onClick={() => handleSwitchRole(r)}
-                      className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-all text-right cursor-pointer ${
-                        isSelected
-                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-lg ${r.color}`}>
-                          <Icon className="w-3.5 h-3.5" />
-                        </div>
-                        <span>{r.name}</span>
-                      </div>
-                      {isSelected && <Check className="w-4 h-4 text-emerald-600" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+        {/* Active Role Indicator Badge */}
+        <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold ${roleConfig.color}`}>
+          <RoleIcon className="w-4 h-4 shrink-0" />
+          <span>{roleConfig.name}</span>
         </div>
 
         {/* Live Refresh Data Button */}
@@ -189,6 +142,48 @@ export const AdminHeader = ({
           <Store className="w-3.5 h-3.5" />
           <span>المتجر</span>
         </button>
+
+        {/* User Profile Menu */}
+        <div className="relative">
+          <button
+            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition-all cursor-pointer"
+          >
+            <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-black">
+              {user?.name?.charAt(0) || <User className="w-4 h-4" />}
+            </div>
+            <span className="hidden md:inline max-w-[110px] truncate">{user?.name || 'حسابي'}</span>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+          </button>
+
+          {isUserMenuOpen && (
+            <div className="absolute left-0 mt-2 w-56 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 mb-1">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{user?.name}</p>
+                <p className="text-[11px] text-slate-400 truncate">{user?.email}</p>
+              </div>
+
+              <div className="space-y-1">
+                <a
+                  href="/staff/login"
+                  onClick={() => setIsUserMenuOpen(false)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <User className="w-4 h-4 text-indigo-500" />
+                  <span>تبديل الحساب</span>
+                </a>
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>تسجيل الخروج الآمن</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

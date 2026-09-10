@@ -2,6 +2,7 @@ import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus } from '@n
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 
 import {
@@ -10,7 +11,9 @@ import {
   RefreshTokenDto,
   ForgotPasswordDto,
   ResetPasswordDto,
+  LogoutDto,
 } from './dto/auth.dto';
+
 
 @Controller('auth')
 export class AuthController {
@@ -37,12 +40,13 @@ export class AuthController {
     return this.authService.refreshToken(body.refreshToken);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@CurrentUser() user: any) {
-    return this.authService.logout(user.id);
+  async logout(@CurrentUser() user: any, @Body() body: LogoutDto) {
+    return this.authService.logout(user?.id, body?.refreshToken);
   }
+
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('forgot-password')

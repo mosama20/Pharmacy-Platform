@@ -207,35 +207,44 @@ export const Navbar = ({
 
                 {/* Dropdown Menu */}
                 {isUserMenuOpen && (
-                  <div className="absolute left-0 mt-2 w-60 rounded-2xl glass-card shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="p-2.5 border-b border-slate-100 dark:border-slate-800">
+                  <div className="absolute left-0 mt-2 w-64 rounded-2xl glass-card shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+                    <div className="p-3 border-b border-slate-100 dark:border-slate-800">
                       <p className="font-bold text-sm text-slate-900 dark:text-white truncate">
                         {user.name}
                       </p>
-                      <p className="text-xs text-slate-500 font-mono">{user.phone}</p>
-                      <span
-                        className={`mt-1 inline-block text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                          user.role === 'ADMIN'
-                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                      <p className="text-xs text-slate-500 font-mono">{user.phone || user.email}</p>
+
+                      <div className="flex items-center gap-2 mt-2">
+                        <span
+                          className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                            user.role === 'ADMIN'
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                              : user.role === 'PHARMACIST'
+                              ? 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300'
+                              : user.role === 'DELIVERY'
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          }`}
+                        >
+                          {user.role === 'ADMIN'
+                            ? 'مدير النظام (Admin)'
                             : user.role === 'PHARMACIST'
-                            ? 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300'
+                            ? 'صيدلي مراجع'
                             : user.role === 'DELIVERY'
-                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                        }`}
-                      >
-                        {user.role === 'ADMIN'
-                          ? 'مدير النظام (Admin)'
-                          : user.role === 'PHARMACIST'
-                          ? 'صيدلي مراجع'
-                          : user.role === 'DELIVERY'
-                          ? 'مندوب توصيل سريع'
-                          : 'عميل مميز'}
-                      </span>
+                            ? 'كابتن توصيل'
+                            : 'عميل مميز'}
+                        </span>
+
+                        {user.points !== undefined && (
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md">
+                            {user.points} نقطة
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="py-1">
-                      {isAdminOrStaff && (
+                      {isAdminOrStaff ? (
                         <a
                           href={
                             user?.role === 'ADMIN'
@@ -247,32 +256,57 @@ export const Navbar = ({
                               : '/admin'
                           }
                           onClick={() => setIsUserMenuOpen(false)}
-                          className="w-full text-right px-3 py-2 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 flex items-center gap-2"
+                          className="w-full text-right px-3 py-2 rounded-xl text-xs font-bold text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 flex items-center gap-2"
                         >
                           <LayoutDashboard className="w-4 h-4 text-purple-600" />
                           <span>
                             {user?.role === 'DELIVERY'
-                              ? 'بوابة الكابتن والتوصيل'
+                              ? 'بوابة كابتن التوصيل'
                               : user?.role === 'PHARMACIST'
                               ? 'بوابة الصيدلي والمراجعة'
                               : 'لوحة الإدارة المركزية'}
                           </span>
                         </a>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setIsUserMenuOpen(false);
+                              if (onOpenTracking) onOpenTracking();
+                            }}
+                            className="w-full text-right px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                          >
+                            <Truck className="w-4 h-4 text-emerald-600" />
+                            <span>تتبع طلباتي</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setIsUserMenuOpen(false);
+                              if (onOpenRefill) onOpenRefill();
+                            }}
+                            className="w-full text-right px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                          >
+                            <Clock className="w-4 h-4 text-teal-600" />
+                            <span>جدول الأدوية الشهرية</span>
+                          </button>
+                        </>
                       )}
 
                       <button
-                        onClick={() => {
-                          logout();
+                        onClick={async () => {
                           setIsUserMenuOpen(false);
+                          await logout();
                         }}
-                        className="w-full text-right px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 mt-1"
+                        className="w-full text-right px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 mt-1 cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
-                        <span>تسجيل الخروج</span>
+                        <span>تسجيل الخروج الآمن</span>
                       </button>
                     </div>
                   </div>
                 )}
+
               </div>
             ) : (
               <button

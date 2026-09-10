@@ -16,15 +16,29 @@ export const NewStaffModal = ({
     city: 'القاهرة',
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
     try {
       await onSubmit(formData);
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        role: 'PHARMACIST',
+        shift: 'صباحي (8 ص - 4 م)',
+        city: 'القاهرة',
+      });
       onClose();
+    } catch (err) {
+      console.error('[NewStaffModal] Error creating staff:', err);
+      setError(err?.message || 'حدث خطأ أثناء إنشاء حساب الموظف');
     } finally {
       setLoading(false);
     }
@@ -58,6 +72,13 @@ export const NewStaffModal = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium rounded-xl flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
               اسم الموظف بالكامل:

@@ -289,13 +289,8 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
 
   // Staff Creation & Deletion
   const handleCreateStaff = async (formData) => {
-    try {
-      await api.createStaff(formData);
-      alert('تم إنشاء حساب الموظف بنجاح!');
-      fetchData();
-    } catch (err) {
-      alert('خطأ أثناء إنشاء حساب الموظف: ' + err.message);
-    }
+    await api.createStaff(formData);
+    fetchData();
   };
 
   const handleDeleteStaff = async (id) => {

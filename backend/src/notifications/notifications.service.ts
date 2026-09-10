@@ -44,6 +44,7 @@ export class NotificationsService {
     Promise.allSettled([
       this.telegramService.sendNewOrderAlert(telegramPayload),
       order.customerEmail ? this.emailService.sendOrderConfirmationEmail(emailPayload) : Promise.resolve(),
+      this.emailService.sendAdminOrderAlert(emailPayload),
     ]).then((results) => {
       this.logger.log(`Notifications result for order #${order.orderNumber}: ${JSON.stringify(results)}`);
     });
@@ -82,10 +83,19 @@ export class NotificationsService {
             notes: prescription.notes,
           })
         : Promise.resolve(),
+      this.emailService.sendAdminPrescriptionAlert({
+        id: prescription.id,
+        customerName: prescription.customerName,
+        customerPhone: prescription.customerPhone,
+        customerAddress: `${prescription.governorate || ''} - ${prescription.district || ''} - ${prescription.customerAddress || ''}`,
+        notes: prescription.notes || prescription.patientNotes,
+        imageUrl: prescription.imageUrl || (prescription.images && prescription.images[0]),
+      }),
     ]).then((results) => {
       this.logger.log(`Prescription notification results: ${JSON.stringify(results)}`);
     });
   }
+
 
   async testTelegram(token?: string, chatId?: string) {
     return this.telegramService.sendTextMessage(

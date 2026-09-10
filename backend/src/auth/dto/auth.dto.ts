@@ -70,3 +70,10 @@ export class ResetPasswordDto {
   @MinLength(6, { message: 'يجب ألا تقل كلمة المرور الجديدة عن 6 أحرف' })
   newPassword: string;
 }
+
+export class LogoutDto {
+  @IsString()
+  @IsOptional()
+  refreshToken?: string;
+}
+
