@@ -8,8 +8,6 @@ import {
   AlertCircle,
   RefreshCw,
   Layers,
-  Sparkles,
-  Database,
   ArrowRight,
   HelpCircle,
   FileCheck,
@@ -22,6 +20,7 @@ export const ExcelImportModal = ({ isOpen, onClose, onImportSuccess }) => {
   const [fileBase64, setFileBase64] = useState('');
   const [mode, setMode] = useState('replace'); // 'replace' | 'append'
   const [loading, setLoading] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
 
@@ -74,27 +73,16 @@ export const ExcelImportModal = ({ isOpen, onClose, onImportSuccess }) => {
     }
   };
 
-  const handleImportDefaultSheet = async () => {
-    setLoading(true);
-    setError(null);
-    setResult(null);
-
+  const handleDownloadTemplate = async () => {
     try {
-      const res = await api.importDefaultExcel(mode);
-      setResult(res);
-      if (onImportSuccess) onImportSuccess(res);
+      setDownloadingTemplate(true);
+      setError(null);
+      await api.downloadExcelTemplate();
     } catch (err) {
-      setError(
-        err.message ||
-          'تعذر العثور على الشيت الافتراضي (D:\\chefaa_products_final_cdn.xlsx) أو معالجته.',
-      );
+      setError(err.message || 'حدث خطأ أثناء تنزيل قالب الإكسيل.');
     } finally {
-      setLoading(false);
+      setDownloadingTemplate(false);
     }
-  };
-
-  const handleDownloadTemplate = () => {
-    window.open(api.downloadExcelTemplateUrl(), '_blank');
   };
 
   const handleReset = () => {
@@ -223,49 +211,6 @@ export const ExcelImportModal = ({ isOpen, onClose, onImportSuccess }) => {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Top Action / Fast Sync from Platform File */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>مزامنة سريعة بضغطة واحدة</span>
-                  </span>
-                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">
-                    استيراد مباشر من شيت المنصة النهائي:
-                  </h4>
-                  <p className="text-[11px] text-slate-500 font-mono" dir="ltr">
-                    D:\chefaa_products_final_cdn.xlsx
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleImportDefaultSheet}
-                  disabled={loading}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 inline-flex items-center gap-2 cursor-pointer transition-all shrink-0 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>جاري الاستيراد والمعالجة...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Database className="w-4 h-4" />
-                      <span>استيراد الشيت الافتراضي فوراً</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Or Divider */}
-              <div className="relative flex items-center justify-center">
-                <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-                <span className="bg-white dark:bg-slate-900 px-3 text-[11px] text-slate-400 font-bold uppercase shrink-0">
-                  أو رفع شيت إكسيل مخصص
-                </span>
-                <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-              </div>
-
               {/* Upload Dropzone */}
               <div className="space-y-3">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -301,8 +246,8 @@ export const ExcelImportModal = ({ isOpen, onClose, onImportSuccess }) => {
                       <span className="font-bold text-xs text-slate-700 dark:text-slate-300 block">
                         اسحب ملف الإكسيل هنا أو اضغط للاختيار من جهازك
                       </span>
-                      <span className="text-[10px] text-slate-400 block">
-                        يدعم ملفات Excel بجميع الأعمدة (القسم الرئيسي، الفرعي، الاسم، السعر، الصورة، إلخ)
+                      <span className="text-[10px] text-slate-400 block leading-relaxed">
+                        يدعم ملفات Excel بجميع الأعمدة (القسم الرئيسي والفرعي، اسم المنتج، السعر الحالي، السعر قبل الخصم، الكمية بالمخزن، المادة الفعالة، كود SKU، والصورة)
                       </span>
                     </div>
                   )}
@@ -372,10 +317,15 @@ export const ExcelImportModal = ({ isOpen, onClose, onImportSuccess }) => {
 
                 <button
                   onClick={handleDownloadTemplate}
-                  className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs"
+                  disabled={downloadingTemplate}
+                  className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs disabled:opacity-50"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>تنزيل قالب الشيت الفارغ</span>
+                  {downloadingTemplate ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5" />
+                  )}
+                  <span>{downloadingTemplate ? 'جاري التحميل...' : 'تنزيل قالب الشيت الفارغ'}</span>
                 </button>
               </div>
 

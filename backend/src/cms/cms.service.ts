@@ -163,6 +163,29 @@ export class CmsService {
 
   // --- Platform Settings ---
   getSettings(): PlatformSettings {
+    if (this.db.settings) {
+      if (this.db.settings.refillDiscountPercent === undefined || this.db.settings.refillDiscountPercent === null) {
+        this.db.settings.refillDiscountPercent = 15;
+      }
+      if (this.db.settings.refillFreeDelivery === undefined) {
+        this.db.settings.refillFreeDelivery = true;
+      }
+    }
+    if (this.db.settings && Array.isArray(this.db.settings.quickCards)) {
+      if (!this.db.settings.quickCards.some((c) => c.id === 'card_insurance' || c.actionType === 'insurance')) {
+        this.db.settings.quickCards.splice(1, 0, {
+          id: 'card_insurance',
+          title: 'التعاقدات والتأمين الطبي',
+          subtitle: 'سامسونج، توشيبا، يونيكير، أكسا...',
+          icon: 'ShieldCheck',
+          actionType: 'insurance',
+          gradient: 'from-teal-500/10 to-emerald-500/10',
+          iconBg: 'bg-teal-700',
+          order: 2,
+          isVisible: true,
+        });
+      }
+    }
     return this.db.settings;
   }
 

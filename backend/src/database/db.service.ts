@@ -140,6 +140,13 @@ export interface Order {
   updatedAt: string;
 }
 
+export interface RefillItem {
+  name: string;
+  quantity: number;
+  dosage?: string;
+  price?: number;
+}
+
 export interface RefillSubscription {
   id: string;
   customerId: string;
@@ -155,6 +162,10 @@ export interface RefillSubscription {
   status: 'ACTIVE' | 'PAUSED' | 'CANCELLED';
   nextRefillDate: string;
   createdAt: string;
+  items?: RefillItem[];
+  discountPercent?: number;
+  prescriptionUrl?: string;
+  notes?: string;
 }
 
 // CMS Models
@@ -166,7 +177,7 @@ export interface HeroBanner {
   bg: string;
   accent: string;
   ctaText: string;
-  actionType: 'upload' | 'refill' | 'category' | 'link' | 'url';
+  actionType: 'upload' | 'refill' | 'insurance' | 'category' | 'link' | 'url';
   actionValue?: string;
   img: string;
   order: number;
@@ -238,7 +249,7 @@ export interface QuickCard {
   title: string;
   subtitle: string;
   icon: string;
-  actionType: 'upload' | 'refill' | 'search' | 'location' | 'category' | 'link' | 'url' | 'none';
+  actionType: 'upload' | 'refill' | 'insurance' | 'search' | 'location' | 'category' | 'link' | 'url' | 'none';
   actionValue?: string;
   gradient?: string;
   iconBg?: string;
@@ -297,6 +308,9 @@ export interface PlatformSettings {
   mediaLibrary: MediaAsset[];
   quickCards?: QuickCard[];
   insuranceCompanies?: InsuranceCompany[];
+  // Chronic Refills Settings
+  refillDiscountPercent?: number;
+  refillFreeDelivery?: boolean;
   // Notifications & Integrations
   telegramBotToken?: string;
   telegramChatId?: string;
@@ -346,8 +360,10 @@ export class DbService implements OnModuleInit {
     isAnnouncementActive: true,
     allowPrescriptionUpload: true,
     seoTitle: 'الصيدلية الذكية | صيدليتك أونلاين - أسرع توصيل دواء',
-    seoDescription: 'اطلب كل احتياجاتك من الصيدلية أونلاين، ارفع الروشتة، اسأل صيدلي، وباقة الدواء الشهري مع أسرع خدمة توصيل.',
+    seoDescription: 'اطلب كل احتياجاتك من الصيدلية أونلاين، ارفع الروشتة، اسأل صيدلي، وخدمة الدواء الشهري مع أسرع خدمة توصيل.',
     seoKeywords: 'صيدلية اونلاين, دواء, توصيل ادوية, روشتة, دواء شهري, مستحضرات تجميل, فيتامينات',
+    refillDiscountPercent: 15,
+    refillFreeDelivery: true,
     socialLinks: {
       facebook: 'https://facebook.com',
       instagram: 'https://instagram.com',
@@ -375,6 +391,17 @@ export class DbService implements OnModuleInit {
         isVisible: true,
       },
       {
+        id: 'card_insurance',
+        title: 'التعاقدات والتأمين الطبي',
+        subtitle: 'سامسونج، توشيبا، يونيكير، أكسا...',
+        icon: 'ShieldCheck',
+        actionType: 'insurance',
+        gradient: 'from-teal-500/10 to-emerald-500/10',
+        iconBg: 'bg-teal-700',
+        order: 2,
+        isVisible: true,
+      },
+      {
         id: 'card_refill',
         title: 'الدواء الشهري للمزمن',
         subtitle: 'توصيل تلقائي لأدوية السكر والضغط',
@@ -382,7 +409,7 @@ export class DbService implements OnModuleInit {
         actionType: 'refill',
         gradient: 'from-teal-500/10 to-cyan-500/10',
         iconBg: 'bg-teal-600',
-        order: 2,
+        order: 3,
         isVisible: true,
       },
       {
@@ -413,7 +440,7 @@ export class DbService implements OnModuleInit {
         title: 'خدماتنا',
         links: [
           { label: 'ارفع الروشتة واطلب دواك', url: '#upload' },
-          { label: 'باقة الدواء الشهري للمزمن', url: '#refill' },
+          { label: 'خدمة الدواء الشهري للمزمن', url: '#refill' },
           { label: 'محرك البحث عن بدائل الأدوية', url: '#search' },
           { label: 'عروض وخصومات Big Save', url: '#deals' },
         ],

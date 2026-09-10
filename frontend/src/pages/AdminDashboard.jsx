@@ -32,6 +32,7 @@ import { CustomersTab } from '../components/admin/tabs/CustomersTab';
 import { AnalyticsTab } from '../components/admin/tabs/AnalyticsTab';
 import { CourierView } from '../components/admin/tabs/CourierView';
 import { CmsTab } from '../components/admin/tabs/CmsTab';
+import { InsuranceTab } from '../components/admin/tabs/InsuranceTab';
 
 export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
   const { user, login, logout, isAdmin, isPharmacist, isCourier, isSupport } = useAuth();
@@ -126,6 +127,8 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
     footerColumns: [],
     mediaLibrary: [],
     quickCards: [],
+    refillDiscountPercent: 15,
+    refillFreeDelivery: true,
     telegramBotToken: '8816040899:AAHn5t7WDimz6JudP27PccRPlwFuj8aDMHc',
     telegramChatId: '8800720269',
     telegramNotificationsEnabled: true,
@@ -239,6 +242,8 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
               footerColumns: settingsData.footerColumns || [],
               mediaLibrary: settingsData.mediaLibrary || [],
               quickCards: settingsData.quickCards || [],
+              refillDiscountPercent: settingsData.refillDiscountPercent ?? 15,
+              refillFreeDelivery: settingsData.refillFreeDelivery ?? true,
               telegramBotToken: settingsData.telegramBotToken || '8816040899:AAHn5t7WDimz6JudP27PccRPlwFuj8aDMHc',
               telegramChatId: settingsData.telegramChatId || '8800720269',
               telegramNotificationsEnabled: settingsData.telegramNotificationsEnabled ?? true,
@@ -346,6 +351,39 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
       );
     } catch (err) {
       alert('فشل تحديث رصيد المخزون: ' + err.message);
+    }
+  };
+
+  const handleUpdateProduct = async (productId, updatedData) => {
+    try {
+      await api.updateProduct(productId, updatedData);
+      alert('تم تحديث بيانات المنتج بنجاح!');
+      fetchData();
+    } catch (err) {
+      alert('فشل تحديث بيانات المنتج: ' + err.message);
+    }
+  };
+
+  const handleDeleteProduct = async (productId, productName) => {
+    if (!window.confirm(`هل أنت متأكد من حذف المنتج (${productName || productId})؟`)) return;
+    try {
+      await api.deleteProduct(productId);
+      alert('تم حذف المنتج بنجاح!');
+      setProductsList((prev) => prev.filter((p) => p.id !== productId));
+      fetchData();
+    } catch (err) {
+      alert('فشل حذف المنتج: ' + err.message);
+    }
+  };
+
+  const handleClearCatalog = async () => {
+    try {
+      await api.clearAllProducts();
+      setProductsList([]);
+      alert('تم إفراغ كتالوج المنتجات بالكامل بنجاح!');
+      fetchData();
+    } catch (err) {
+      alert('فشل إفراغ الكتالوج: ' + err.message);
     }
   };
 
@@ -493,7 +531,8 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
 
   const couriers = Array.isArray(staffList) ? staffList.filter((s) => s.role === 'DELIVERY') : [];
   const pendingOrdersCount = orders.filter((o) => o.status === 'PENDING').length;
-  const pendingRxCount = prescriptions.filter((p) => p.status === 'PENDING').length;
+  const pendingRxCount = prescriptions.filter((p) => p.status === 'PENDING' && !p.hasInsurance && !p.insuranceCompany).length;
+  const pendingInsuranceCount = prescriptions.filter((p) => p.status === 'PENDING' && (p.hasInsurance || p.insuranceCompany)).length;
   const activeDeliveriesCount = orders.filter((o) => o.status === 'OUT_FOR_DELIVERY').length;
   const readyDeliveriesCount = orders.filter((o) => o.status === 'PREPARING').length;
 
@@ -513,6 +552,7 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
       onBackToStore={onBackToStore}
       pendingOrdersCount={pendingOrdersCount}
       pendingRxCount={pendingRxCount}
+      pendingInsuranceCount={pendingInsuranceCount}
       activeDeliveriesCount={activeDeliveriesCount}
       readyDeliveriesCount={readyDeliveriesCount}
     >
@@ -539,13 +579,29 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
         />
       )}
 
+      {/* 2.5 Insurance & Corporate Contracts Tab */}
+      {activeTab === 'insurance' && (
+        <InsuranceTab
+          prescriptions={prescriptions}
+          settingsForm={settingsForm}
+          setSettingsForm={setSettingsForm}
+          onSaveSettings={handleSaveSettings}
+          onSelectRxForReview={(rx) => setSelectedRxForReview(rx)}
+          onUpdateRxStatus={handleUpdateRxStatus}
+        />
+      )}
+
       {/* 3. Products & Inventory Tab */}
       {activeTab === 'products' && (
         <ProductsTab
           products={productsList}
+          categories={cmsCategories}
           onOpenNewProductModal={() => setIsNewProductModalOpen(true)}
           onOpenExcelImportModal={() => setIsExcelImportModalOpen(true)}
           onUpdateStock={handleUpdateProductStock}
+          onUpdateProduct={handleUpdateProduct}
+          onDeleteProduct={handleDeleteProduct}
+          onClearCatalog={handleClearCatalog}
           onRefresh={() => fetchData(true)}
         />
       )}
@@ -561,7 +617,17 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
 
       {/* 5. Refills Tab */}
       {activeTab === 'refills' && (
-        <RefillsTab refills={refillsList} />
+        <RefillsTab
+          refills={refillsList}
+          refillDiscountPercent={settingsForm.refillDiscountPercent ?? 15}
+          onUpdateDiscount={async (newDiscount) => {
+            const updated = { ...settingsForm, refillDiscountPercent: Number(newDiscount) };
+            setSettingsForm(updated);
+            await saveSettings(updated);
+            fetchData(true);
+          }}
+          onRefreshRefills={() => fetchData(true)}
+        />
       )}
 
       {/* 6. Customers Directory & Full User Control Center */}
@@ -656,6 +722,7 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
         isOpen={isNewProductModalOpen}
         onClose={() => setIsNewProductModalOpen(false)}
         onSubmit={handleCreateProduct}
+        categories={cmsCategories}
       />
 
       <NewBannerModal

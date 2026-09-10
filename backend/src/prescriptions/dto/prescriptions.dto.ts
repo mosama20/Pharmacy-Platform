@@ -93,6 +93,10 @@ export class UploadPrescriptionDto {
 
   @IsString()
   @IsOptional()
+  insuranceMemberId?: string;
+
+  @IsString()
+  @IsOptional()
   insuranceCardPhoto?: string;
 
   @IsString()

@@ -4,6 +4,7 @@ import { ChevronLeft, Home } from 'lucide-react';
 const TAB_TITLES = {
   orders: 'صندوق الطلبات الواردة',
   prescriptions: 'فحص وتسعير الروشتات الطبية',
+  insurance: 'التعاقدات والتأمين الطبي',
   products: 'المخزون والأدوية',
   refills: 'اشتراكات الدواء الشهري',
   courier: 'بوابة مهام التوصيل والمندوب',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   FileText,
   Clock,
@@ -247,11 +247,11 @@ export const Home = ({
     },
     {
       id: 'def_2',
-      title: 'باقة الدواء الشهري للمزمن',
-      subtitle: 'تكرار وتوصيل تلقائي لأدوية السكر والضغط والقلب كل 30 يوماً مع توصيل مجاني',
+      title: 'خدمة الدواء الشهري للمزمن',
+      subtitle: 'تكرار وتوصيل تلقائي لأدوية السكر والضغط والقلب كل 30 يوماً مع خصم دوري',
       tag: 'رعاية صحية مستمرة',
       bg: 'from-teal-950 via-cyan-950 to-slate-900',
-      ctaText: 'اشترك في باقة الدواء الشهري',
+      ctaText: 'طلب خدمة الدواء الشهري',
       actionType: 'refill',
       img: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=600&q=80',
     },
@@ -262,9 +262,29 @@ export const Home = ({
   const banners = activeBanners.length > 0 ? activeBanners : fallbackBanners;
   const articles = cmsArticles || [];
 
-  const rawCards = settings?.quickCards && settings.quickCards.length > 0
-    ? settings.quickCards
-    : DEFAULT_QUICK_CARDS;
+  const rawCards = useMemo(() => {
+    const list = settings?.quickCards && settings.quickCards.length > 0
+      ? [...settings.quickCards]
+      : [...DEFAULT_QUICK_CARDS];
+
+    // Ensure card_insurance is included alongside the other 4 cards
+    if (!list.some((c) => c.id === 'card_insurance' || c.actionType === 'insurance')) {
+      const insuranceCard = DEFAULT_QUICK_CARDS.find((c) => c.id === 'card_insurance') || {
+        id: 'card_insurance',
+        title: 'التعاقدات والتأمين الطبي',
+        subtitle: 'سامسونج، توشيبا، يونيكير، أكسا...',
+        icon: 'ShieldCheck',
+        actionType: 'insurance',
+        gradient: 'from-teal-500/10 to-emerald-500/10',
+        iconBg: 'bg-teal-700',
+        order: 2,
+        isVisible: true,
+      };
+      list.splice(1, 0, insuranceCard);
+    }
+    return list;
+  }, [settings?.quickCards]);
+
   const quickCards = rawCards.filter((c) => c.isVisible !== false);
 
   useEffect(() => {
@@ -305,7 +325,7 @@ export const Home = ({
   const handleBannerAction = (banner) => {
     if (banner.actionType === 'upload') onOpenUpload();
     else if (banner.actionType === 'refill') onOpenRefill();
-    else if (banner.actionType === 'insurance') onOpenInsurance?.();
+    else if (banner.actionType === 'insurance') navigate('/insurance');
     else if (banner.actionType === 'category' && banner.actionValue) {
       onSelectCategory(banner.actionValue);
     } else if ((banner.actionType === 'link' || banner.actionType === 'url') && banner.actionValue) {
@@ -326,7 +346,7 @@ export const Home = ({
     } else if (card.actionType === 'refill') {
       onOpenRefill();
     } else if (card.actionType === 'insurance') {
-      onOpenInsurance?.();
+      navigate('/insurance');
     } else if (card.actionType === 'search') {
       onOpenSearch();
     } else if (card.actionType === 'location') {
@@ -499,7 +519,7 @@ export const Home = ({
 
       {/* 2. Fast Actions Grid (Dynamic from CMS) */}
       <section className="max-w-7xl mx-auto px-3 sm:px-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
           {quickCards.map((card) => {
             const IconComponent = QUICK_ICON_MAP[card.icon] || Sparkles;
             const dynamicSubtitle = card.subtitle?.replace(

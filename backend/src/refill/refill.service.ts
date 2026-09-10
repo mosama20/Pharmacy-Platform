@@ -22,21 +22,42 @@ export class RefillService {
       nextDate.setMonth(nextDate.getMonth() + 1);
     }
 
+    const items = dto.items || [];
+    let medicationName = dto.medicationName || '';
+    if (!medicationName && items.length > 0) {
+      medicationName = items.map((it) => `${it.name} (${it.quantity} علبة)`).join(' + ');
+    }
+
+    let dosageSchedule = dto.dosageSchedule || '';
+    if (!dosageSchedule && items.length > 0) {
+      dosageSchedule = items
+        .filter((it) => it.dosage)
+        .map((it) => `${it.name}: ${it.dosage}`)
+        .join(' | ') || 'حسب إرشادات الطبيب والصيدلي';
+    }
+
+    const totalQty = dto.monthlyQuantity || (items.length > 0 ? items.reduce((sum, it) => sum + (it.quantity || 1), 0) : 1);
+    const discountPercent = dto.discountPercent ?? this.db.settings?.refillDiscountPercent ?? 15;
+
     const newRefill: RefillSubscription = {
       id: `refill_${uuidv4().substring(0, 8)}`,
       customerId: dto.customerId || 'guest_user',
-      customerName: dto.customerName,
-      customerPhone: dto.customerPhone,
-      medicationName: dto.medicationName,
-      dosageSchedule: dto.dosageSchedule,
-      monthlyQuantity: dto.monthlyQuantity || 1,
-      price: dto.price,
+      customerName: dto.customerName || 'عميل الدواء الشهري',
+      customerPhone: dto.customerPhone || '',
+      medicationName: medicationName || 'أدوية شهرية مخصصة',
+      dosageSchedule: dosageSchedule || 'حسب إرشادات الطبيب',
+      monthlyQuantity: totalQty,
+      price: dto.price || 0,
       deliveryAddress: dto.deliveryAddress,
       governorate: dto.governorate,
       renewalDay: dto.renewalDay || 1,
       status: 'ACTIVE',
       nextRefillDate: nextDate.toISOString().split('T')[0],
       createdAt: new Date().toISOString(),
+      items: items.length > 0 ? items : undefined,
+      discountPercent,
+      prescriptionUrl: dto.prescriptionUrl,
+      notes: dto.notes,
     };
 
     this.db.refills.push(newRefill);
@@ -62,7 +83,7 @@ export class RefillService {
     }).catch((e) => console.warn('Prisma refill create error:', e));
 
     return {
-      message: 'تم تفعيل باقة التكرار الشهري للدواء بنجاح وسنقوم بتذكيرك وتوصيلها تلقائياً!',
+      message: 'تم تفعيل خدمة الدواء الشهري بنجاح وسنقوم بتجهيز أدويتك وتذكيرك وتوصيلها تلقائياً!',
       refill: newRefill,
     };
   }

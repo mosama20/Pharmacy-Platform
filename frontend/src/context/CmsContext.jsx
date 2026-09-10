@@ -23,8 +23,10 @@ const defaultSettings = {
   announcementText: 'خصم 15% على جميع مستلزمات العناية بالبشرة والفيتامينات بكود: WELCOME15',
   isAnnouncementActive: true,
   allowPrescriptionUpload: true,
+  refillDiscountPercent: 15,
+  refillFreeDelivery: true,
   seoTitle: 'الصيدلية الذكية | صيدليتك أونلاين - أسرع توصيل دواء',
-  seoDescription: 'اطلب كل احتياجاتك من الصيدلية أونلاين، ارفع الروشتة، اسأل صيدلي، وباقة الدواء الشهري مع أسرع خدمة توصيل.',
+  seoDescription: 'اطلب كل احتياجاتك من الصيدلية أونلاين، ارفع الروشتة، اسأل صيدلي، وخدمة الدواء الشهري مع أسرع خدمة توصيل.',
   seoKeywords: 'صيدلية اونلاين, دواء, توصيل ادوية, روشتة, دواء شهري, مستحضرات تجميل, فيتامينات',
   socialLinks: {
     facebook: 'https://facebook.com',
@@ -45,7 +47,7 @@ const defaultSettings = {
       title: 'خدماتنا',
       links: [
         { label: 'ارفع الروشتة واطلب دواك', url: '#upload' },
-        { label: 'باقة الدواء الشهري للمزمن', url: '#refill' },
+        { label: 'خدمة الدواء الشهري للمزمن', url: '#refill' },
         { label: 'محرك البحث عن بدائل الأدوية', url: '#search' },
         { label: 'عروض وخصومات Big Save', url: '#deals' },
       ],

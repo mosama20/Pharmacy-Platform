@@ -141,6 +141,62 @@ export const CmsBusinessSection = ({
           </div>
         </div>
 
+        {/* Chronic Refills Settings */}
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-teal-50/80 to-emerald-50/80 dark:from-teal-950/30 dark:to-emerald-950/30 border border-teal-200/80 dark:border-teal-800/80 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span className="font-bold text-xs text-slate-900 dark:text-white">
+                إعدادات خدمة الدواء الشهري للأمراض المزمنة (Chronic Refill):
+              </span>
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200">
+              الخصم الحالي: {settingsForm.refillDiscountPercent ?? 15}%
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                نسبة الخصم الحصرية لاشتراك الدواء الشهري (%):
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={settingsForm.refillDiscountPercent ?? 15}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, refillDiscountPercent: Math.max(0, Math.min(100, Number(e.target.value))) })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-teal-300 dark:border-teal-700 bg-white dark:bg-slate-900 text-xs text-center font-mono font-black text-teal-700 dark:text-teal-300 focus:outline-none focus:border-teal-500 shadow-xs"
+                />
+                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">%</span>
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                تطبق هذه النسبة تلقائياً على كافة طلبات واشتراكات تكرار الدواء الشهري للمرضى.
+              </p>
+            </div>
+
+            <div className="flex flex-col justify-center">
+              <label className="flex items-center gap-2 cursor-pointer bg-white/70 dark:bg-slate-900/70 p-3 rounded-xl border border-teal-200/50 dark:border-teal-800/50">
+                <input
+                  type="checkbox"
+                  checked={settingsForm.refillFreeDelivery ?? true}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, refillFreeDelivery: e.target.checked })}
+                  className="rounded text-teal-600 focus:ring-teal-500"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                    توصيل مجاني لطلبات الدواء الشهري
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                    ميزة تحفيزية لمرضى الأمراض المزمنة دون احتساب رسوم شحن دورية
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
         {/* Announcement Bar */}
         <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
           <div className="flex items-center justify-between">

@@ -12,6 +12,7 @@ export const AdminLayout = ({
   onBackToStore,
   pendingOrdersCount = 0,
   pendingRxCount = 0,
+  pendingInsuranceCount = 0,
   activeDeliveriesCount = 0,
   readyDeliveriesCount = 0,
   children,
@@ -34,6 +35,7 @@ export const AdminLayout = ({
         onBackToStore={onBackToStore}
         pendingOrdersCount={pendingOrdersCount}
         pendingRxCount={pendingRxCount}
+        pendingInsuranceCount={pendingInsuranceCount}
         activeDeliveriesCount={activeDeliveriesCount}
         readyDeliveriesCount={readyDeliveriesCount}
       />

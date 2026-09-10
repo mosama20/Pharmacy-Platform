@@ -10,6 +10,7 @@ import { CategoriesPage } from './pages/CategoriesPage';
 import { ProductDetailsPage } from './pages/ProductDetailsPage';
 import { CartPage } from './pages/CartPage';
 import { CheckoutPage } from './pages/CheckoutPage';
+import { InsurancePage } from './pages/InsurancePage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { StaffLogin } from './pages/StaffLogin';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -68,6 +69,8 @@ export function AppRoutes() {
           <Route path="products/:id" element={<ProductDetailsPage />} />
           <Route path="cart" element={<CartPage />} />
           <Route path="checkout" element={<CheckoutPage />} />
+          <Route path="insurance" element={<InsurancePage />} />
+          <Route path="contracts" element={<InsurancePage />} />
         </Route>
 
         {/* 2. Admin HQ Portal (URL: /admin and /admin/*) */}

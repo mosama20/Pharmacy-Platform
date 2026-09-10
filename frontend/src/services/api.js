@@ -209,6 +209,16 @@ export const api = {
     return data;
   },
 
+  clearAllProducts: async () => {
+    const res = await fetch(`${API_BASE}/products/clear-all`, {
+      method: 'DELETE',
+      headers: getHeaders(true),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل إفراغ كتالوج المنتجات');
+    return data;
+  },
+
   getCategoriesTree: async () => {
     const res = await fetch(`${API_BASE}/products/categories-tree`);
     return res.json();
@@ -236,7 +246,44 @@ export const api = {
     return data;
   },
 
-  downloadExcelTemplateUrl: () => `${API_BASE}/products/template-excel`,
+  downloadExcelTemplate: async () => {
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('chefaa_token');
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_BASE}/products/template-excel`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!res.ok) {
+      let errMsg = 'فشل تحميل قالب الإكسيل';
+      try {
+        const errJson = await res.json();
+        if (errJson?.message) {
+          errMsg = Array.isArray(errJson.message) ? errJson.message.join(', ') : errJson.message;
+        }
+      } catch (e) {}
+      throw new Error(errMsg);
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'chefaa_products_template.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => window.URL.revokeObjectURL(url), 1500);
+  },
+
+  downloadExcelTemplateUrl: () => {
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('chefaa_token');
+    return `${API_BASE}/products/template-excel${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  },
 
   // Prescriptions
   uploadPrescription: async (rxData) => {
@@ -652,8 +699,20 @@ export const api = {
   },
 
   getAllRefills: async () => {
-    const res = await fetch(`${API_BASE}/refill`);
+    const res = await fetch(`${API_BASE}/refill`, {
+      headers: getHeaders(true),
+    });
     return res.json();
+  },
+
+  toggleRefillStatus: async (id) => {
+    const res = await fetch(`${API_BASE}/refill/${id}/toggle`, {
+      method: 'PATCH',
+      headers: getHeaders(true),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل تعديل حالة الاشتراك');
+    return data;
   },
 
   // CMS - Banners

@@ -78,15 +78,24 @@ export class CreateProductDto {
 
   @IsString()
   @IsOptional()
-  unit?: string;
+  dosage?: string;
+
+  @IsString()
+  @IsOptional()
+  sideEffects?: string;
 
   @IsNumber()
   @IsOptional()
-  rating?: number;
+  discountPercentage?: number;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
 
   @IsNumber()
   @IsOptional()
-  ratingCount?: number;
+  reviewCount?: number;
 }
 
 export class UpdateProductDto {
@@ -142,6 +151,18 @@ export class UpdateProductDto {
 
   @IsString()
   @IsOptional()
+  dosage?: string;
+
+  @IsString()
+  @IsOptional()
+  sideEffects?: string;
+
+  @IsNumber()
+  @IsOptional()
+  discountPercentage?: number;
+
+  @IsString()
+  @IsOptional()
   image?: string;
 
   @IsBoolean()
@@ -151,6 +172,11 @@ export class UpdateProductDto {
   @IsBoolean()
   @IsOptional()
   isHotDeal?: boolean;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
 
   @IsArray()
   @IsString({ each: true })
@@ -168,6 +194,10 @@ export class UpdateProductDto {
   @IsNumber()
   @IsOptional()
   ratingCount?: number;
+
+  @IsNumber()
+  @IsOptional()
+  reviewCount?: number;
 }
 
 export class ImportExcelDto {

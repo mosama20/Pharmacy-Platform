@@ -29,6 +29,7 @@ export const AdminSidebar = ({
   onBackToStore,
   pendingOrdersCount = 0,
   pendingRxCount = 0,
+  pendingInsuranceCount = 0,
   activeDeliveriesCount = 0,
   readyDeliveriesCount = 0,
 }) => {
@@ -62,6 +63,14 @@ export const AdminSidebar = ({
           icon: FileText,
           badge: pendingRxCount > 0 ? pendingRxCount : null,
           badgeColor: 'bg-amber-500 text-white',
+          visible: isAdmin || isPharmacist,
+        },
+        {
+          id: 'insurance',
+          label: 'التعاقدات والتأمين',
+          icon: ShieldCheck,
+          badge: pendingInsuranceCount > 0 ? pendingInsuranceCount : null,
+          badgeColor: 'bg-emerald-600 text-white',
           visible: isAdmin || isPharmacist,
         },
         {

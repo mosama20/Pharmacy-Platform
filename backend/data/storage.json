@@ -290668,8 +290668,10 @@
     "isAnnouncementActive": true,
     "allowPrescriptionUpload": true,
     "seoTitle": "الصيدلية الذكية | صيدليتك أونلاين - أسرع توصيل دواء",
-    "seoDescription": "اطلب كل احتياجاتك من الصيدلية أونلاين، ارفع الروشتة، اسأل صيدلي، وباقة الدواء الشهري مع أسرع خدمة توصيل.",
+    "seoDescription": "اطلب كل احتياجاتك من الصيدلية أونلاين، ارفع الروشتة، اسأل صيدلي، وخدمة الدواء الشهري مع أسرع خدمة توصيل.",
     "seoKeywords": "صيدلية اونلاين, دواء, توصيل ادوية, روشتة, دواء شهري, مستحضرات تجميل, فيتامينات",
+    "refillDiscountPercent": 15,
+    "refillFreeDelivery": true,
     "socialLinks": {
       "facebook": "https://facebook.com",
       "instagram": "https://instagram.com",

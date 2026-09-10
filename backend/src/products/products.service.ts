@@ -287,8 +287,67 @@ export class ProductsService {
         ''
       ).toString().trim();
 
-      const rawPrice = row['السعر (جنيه مصري)'] || row['السعر'] || row['price'] || row['Price'] || 0;
+      // Active Ingredient
+      const activeIngredient = (
+        row['المادة الفعالة'] ||
+        row['activeIngredient'] ||
+        row['ActiveIngredient'] ||
+        brand ||
+        'مستحضر دوائي وصحي'
+      ).toString().trim();
+
+      // Current Price
+      const rawPrice =
+        row['السعر الحالي (جنيه مصري)'] ||
+        row['السعر (جنيه مصري)'] ||
+        row['السعر الحالي'] ||
+        row['السعر'] ||
+        row['price'] ||
+        row['Price'] ||
+        0;
       const price = parseFloat(rawPrice) || 0;
+
+      // Original Price (Before Discount)
+      const rawOriginalPrice =
+        row['السعر قبل الخصم (جنيه مصري)'] ||
+        row['السعر قبل الخصم'] ||
+        row['السعر الأصلي'] ||
+        row['سعر قبل الخصم'] ||
+        row['originalPrice'] ||
+        row['OriginalPrice'] ||
+        row['oldPrice'] ||
+        0;
+      const parsedOrig = parseFloat(rawOriginalPrice) || 0;
+      const originalPrice = parsedOrig > price ? parsedOrig : price;
+
+      // Discount Percentage & Hot Deal
+      const rawDiscount =
+        row['نسبة الخصم %'] ||
+        row['نسبة الخصم'] ||
+        row['الخصم %'] ||
+        row['discountPercentage'] ||
+        0;
+      let discountPercentage = parseFloat(rawDiscount) || 0;
+      if (!discountPercentage && originalPrice > price) {
+        discountPercentage = Math.round(((originalPrice - price) / originalPrice) * 100);
+      }
+
+      // Stock
+      const rawStock =
+        row['الكمية المتاحة بالمخزن'] ||
+        row['الكمية بالمخزن (الرصيد)'] ||
+        row['الكمية بالمخزن'] ||
+        row['الكمية'] ||
+        row['المخزون'] ||
+        row['الرصيد'] ||
+        row['stock'] ||
+        row['Stock'] ||
+        row['quantity'] ||
+        row['Quantity'];
+      const stock =
+        rawStock !== undefined && rawStock !== null && rawStock !== ''
+          ? Math.max(0, parseInt(rawStock, 10) || 0)
+          : 50;
 
       const rawRx = (
         row['يحتاج روشتة / وصفة؟'] ||
@@ -329,6 +388,20 @@ export class ProductsService {
         'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=400&q=80'
       ).toString().trim();
 
+      const rawHotDeal = (
+        row['عرض توفير؟ (نعم / لا)'] ||
+        row['عرض توفير؟'] ||
+        row['عرض ساخن'] ||
+        row['isHotDeal'] ||
+        ''
+      ).toString().toLowerCase();
+      const isHotDeal =
+        discountPercentage > 0 ||
+        rawHotDeal.includes('نعم') ||
+        rawHotDeal.includes('yes') ||
+        rawHotDeal.includes('true') ||
+        rawHotDeal.includes('1');
+
       let id = rawSku ? `prod_${rawSku}` : `prod_${uuidv4().substring(0, 8)}`;
       if (seenIds.has(id)) {
         id = `${id}_${i + 1}`;
@@ -339,15 +412,15 @@ export class ProductsService {
         id,
         nameAr,
         nameEn: brand ? `${nameAr} - ${brand}` : nameAr,
-        activeIngredient: brand || 'مستحضر دوائي وصحي',
+        activeIngredient,
         category: mainCat,
         subCategory: subCat,
         price,
-        originalPrice: Math.round(price * 1.1),
-        discountPercentage: 0,
-        stock: 100,
+        originalPrice,
+        discountPercentage,
+        stock,
         isPrescriptionRequired,
-        isHotDeal: false,
+        isHotDeal,
         rating: 4.8,
         reviewCount: Math.floor(Math.random() * 50) + 1,
         descriptionAr: descriptionAr || `${nameAr} - من قسم ${mainCat} (${subCat})`,
@@ -387,11 +460,11 @@ export class ProductsService {
   }
 
   async importFromDefaultFile(
-    defaultPath = 'D:\\chefaa_products_final_cdn.xlsx',
+    defaultPath = process.env.DEFAULT_EXCEL_PATH || '',
     mode: 'replace' | 'append' = 'replace',
   ) {
-    if (!fs.existsSync(defaultPath)) {
-      throw new NotFoundException(`الملف غير موجود في المسار: ${defaultPath}`);
+    if (!defaultPath || !fs.existsSync(defaultPath)) {
+      throw new NotFoundException(`الملف غير موجود في المسار: ${defaultPath || '(لم يتم تحديد مسار)'}`);
     }
 
     const buffer = fs.readFileSync(defaultPath);
@@ -399,63 +472,179 @@ export class ProductsService {
   }
 
   generateExcelTemplate(): Buffer {
-    const templateRows = [
-      {
-        'القسم الرئيسي': 'الأدوية (Medications)',
-        'القسم الفرعي': 'مسكنات الألم',
-        'اسم المنتج': 'بانادول اكسترا اوبتيزورب لتخفيف الألم | 24 قرص',
-        'البراند / الشركة': 'بانادول (Panadol)',
-        'السعر (جنيه مصري)': 58,
-        'يحتاج روشتة / وصفة؟': 'لا (صرف بدون روشتة)',
-        'كود المنتج (SKU)': 'panadol-extra-tab',
-        'وصف المنتج': 'مسكن فعال للصداع وخافض للحرارة.',
-        'رابط المنتج على شفاء': 'https://chefaa.com/sample',
-        'رابط صورة المنتج': 'https://cdn.jsdelivr.net/gh/mosama20/chefaa-images@main/images/panadol-extra-tab.png',
+    // 1. Gather all dynamic categories and their subcategories
+    const categoryTree = new Map<string, Set<string>>();
+
+    // From registered CMS categories
+    if (Array.isArray(this.db.categories)) {
+      for (const cat of this.db.categories) {
+        if (!cat.name || cat.name === 'الكل' || cat.isSpecial) continue;
+        if (!categoryTree.has(cat.name)) {
+          categoryTree.set(cat.name, new Set());
+        }
+      }
+    }
+
+    // From current products
+    if (Array.isArray(this.db.products)) {
+      for (const prod of this.db.products) {
+        const main = prod.category || 'الأدوية (Medications)';
+        const sub = prod.subCategory || 'عام';
+        if (!categoryTree.has(main)) {
+          categoryTree.set(main, new Set());
+        }
+        if (sub) {
+          categoryTree.get(main)!.add(sub);
+        }
+      }
+    }
+
+    // If no categories exist yet, provide standard base pharmacy departments
+    if (categoryTree.size === 0) {
+      categoryTree.set('الأدوية (Medications)', new Set(['مسكنات الألم', 'المضادات الحيوية', 'أدوية السكر والضغط', 'نزلات البرد']));
+      categoryTree.set('العناية بالبشرة (Skin Care)', new Set(['الترطيب', 'واقي الشمس', 'غسول ومقشر']));
+      categoryTree.set('الفيتامينات والمكملات (Vitamins)', new Set(['الفيتامينات والمعادن', 'مكملات الطاقة', 'أوميجا وزيوت']));
+      categoryTree.set('الأم والطفل (Mom & Baby)', new Set(['حليب ورضاعة', 'حفاضات ومناديل', 'شامبو واستحمام']));
+      categoryTree.set('المستلزمات والأجهزة (Medical Devices)', new Set(['أجهزة قياس الضغط', 'أجهزة السكر والشرائط', 'ترمومتر حرارة']));
+    }
+
+    // Ensure every category has at least one subcategory
+    for (const [catName, subSet] of categoryTree.entries()) {
+      if (subSet.size === 0) {
+        subSet.add('عام');
+        subSet.add('منتجات متنوعة');
+      }
+    }
+
+    // 2. Build dynamic sample template rows reflecting actual categories
+    const templateRows: any[] = [];
+    const entries = Array.from(categoryTree.entries());
+
+    const sampleMocks: Record<string, any> = {
+      'الأدوية (Medications)': {
+        name: 'بانادول اكسترا اوبتيزورب لتخفيف الألم | 24 قرص',
+        brand: 'بانادول (Panadol)',
+        ingredient: 'باراسيتامول 500 مجم + كافيين 65 مجم',
+        price: 58,
+        originalPrice: 65,
+        stock: 150,
+        rx: 'لا',
+        sku: 'panadol-extra-24',
+        desc: 'مسكن سريع وممتد المفعول لتسكين آلام الصداع وخفض الحرارة.',
+        img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=400&q=80',
       },
-      {
-        'القسم الرئيسي': 'العناية بالبشرة (Skin Care)',
-        'القسم الفرعي': 'الترطيب',
-        'اسم المنتج': 'سيرافي لوشن مرطب للبشرة الجافة 236 مل',
-        'البراند / الشركة': 'سيرافي (CeraVe)',
-        'السعر (جنيه مصري)': 390,
-        'يحتاج روشتة / وصفة؟': 'لا',
-        'كود المنتج (SKU)': 'cerave-moist-lotion',
-        'وصف المنتج': 'لوشن مرطب غني بالسيراميد وحمض الهيالورونيك.',
-        'رابط المنتج على شفاء': 'https://chefaa.com/sample2',
-        'رابط صورة المنتج': 'https://cdn.jsdelivr.net/gh/mosama20/chefaa-images@main/images/cerave.png',
+      'العناية بالبشرة (Skin Care)': {
+        name: 'سيرافي لوشن مرطب للبشرة الجافة 236 مل',
+        brand: 'سيرافي (CeraVe)',
+        ingredient: 'سيراميد + حمض الهيالورونيك',
+        price: 390,
+        originalPrice: 430,
+        stock: 45,
+        rx: 'لا',
+        sku: 'cerave-moist-236',
+        desc: 'لوشن مرطب يومي للبشرة العادية إلى الجافة غني بالسيراميد الأساسي.',
+        img: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=400&q=80',
       },
-      {
-        'القسم الرئيسي': 'الفيتامينات والمكملات (Vitamins)',
-        'القسم الفرعي': 'الفيتامينات والمعادن',
-        'اسم المنتج': 'أوميجا 3 بلس 30 كبسولة زيت سمك وزيت جنين القمح',
-        'البراند / الشركة': 'سيديكو (SEDICO)',
-        'السعر (جنيه مصري)': 110,
-        'يحتاج روشتة / وصفة؟': 'لا',
-        'كود المنتج (SKU)': 'omega-3-plus-caps',
-        'وصف المنتج': 'مكمل غذائي لدعم صحة القلب والنشاط الذهني.',
-        'رابط المنتج على شفاء': 'https://chefaa.com/sample3',
-        'رابط صورة المنتج': 'https://cdn.jsdelivr.net/gh/mosama20/chefaa-images@main/images/omega.png',
+      'الفيتامينات والمكملات (Vitamins)': {
+        name: 'أوميجا 3 بلس 30 كبسولة زيت سمك وزيت جنين القمح',
+        brand: 'سيديكو (SEDICO)',
+        ingredient: 'زيت سمك 1000 مجم + زيت جنين القمح 100 مجم',
+        price: 110,
+        originalPrice: 125,
+        stock: 80,
+        rx: 'لا',
+        sku: 'omega-3-sedico',
+        desc: 'مكمل غذائي غني بالأحماض الدهنية الأساسية لصحة القلب والدماغ.',
+        img: 'https://images.unsplash.com/photo-1577401239170-897942555fb3?auto=format&fit=crop&w=400&q=80',
       },
-    ];
+      'الأم والطفل (Mom & Baby)': {
+        name: 'حفاضات بامبرز كلوت مقاس 4 عبوة جامبو 60 حفاضة',
+        brand: 'بامبرز (Pampers)',
+        ingredient: 'طبقات حماية فائقة الامتصاص ولطيفة على بشرة الطفل',
+        price: 380,
+        originalPrice: 410,
+        stock: 60,
+        rx: 'لا',
+        sku: 'pampers-pants-size4',
+        desc: 'حفاضات سهلة الارتداء مع قنوات هوائية تحافظ على جفاف بشرة الطفل حتى 12 ساعة.',
+        img: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=400&q=80',
+      },
+    };
+
+    let sampleCount = 0;
+    for (const [mainCat, subSet] of entries) {
+      if (sampleCount >= 6) break;
+      const subList = Array.from(subSet);
+      const subCat = subList[0] || 'عام';
+      const mock = sampleMocks[mainCat] || {
+        name: `منتج نموذج - ${mainCat}`,
+        brand: 'علامة تجارية مصرحة',
+        ingredient: 'مكونات طبية وصحية فعالة',
+        price: 85,
+        originalPrice: 99,
+        stock: 50,
+        rx: 'لا',
+        sku: `sku-${sampleCount + 1}`,
+        desc: `وصف تفصيلي كامل لمنتج صيدلي يتبع تصنيف ${mainCat} (${subCat})`,
+        img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=400&q=80',
+      };
+
+      templateRows.push({
+        'القسم الرئيسي': mainCat,
+        'القسم الفرعي': subCat,
+        'اسم المنتج': mock.name,
+        'البراند / الشركة': mock.brand,
+        'المادة الفعالة': mock.ingredient,
+        'السعر الحالي (جنيه مصري)': mock.price,
+        'السعر قبل الخصم (جنيه مصري)': mock.originalPrice,
+        'الكمية المتاحة بالمخزن': mock.stock,
+        'يحتاج روشتة / وصفة؟': mock.rx,
+        'كود المنتج (SKU)': mock.sku,
+        'وصف المنتج': mock.desc,
+        'رابط صورة المنتج': mock.img,
+      });
+      sampleCount++;
+    }
 
     const wb = xlsx.utils.book_new();
-    const ws = xlsx.utils.json_to_sheet(templateRows);
 
-    // Auto fit column widths
-    ws['!cols'] = [
-      { wch: 30 }, // القسم الرئيسي
+    // Sheet 1: Products Table
+    const wsProducts = xlsx.utils.json_to_sheet(templateRows);
+    wsProducts['!cols'] = [
+      { wch: 32 }, // القسم الرئيسي
       { wch: 25 }, // القسم الفرعي
       { wch: 45 }, // اسم المنتج
       { wch: 25 }, // البراند / الشركة
-      { wch: 18 }, // السعر (جنيه مصري)
+      { wch: 35 }, // المادة الفعالة
+      { wch: 22 }, // السعر الحالي (جنيه مصري)
+      { wch: 24 }, // السعر قبل الخصم (جنيه مصري)
+      { wch: 22 }, // الكمية المتاحة بالمخزن
       { wch: 22 }, // يحتاج روشتة / وصفة؟
       { wch: 25 }, // كود المنتج (SKU)
       { wch: 45 }, // وصف المنتج
-      { wch: 35 }, // رابط المنتج على شفاء
       { wch: 45 }, // رابط صورة المنتج
     ];
+    xlsx.utils.book_append_sheet(wb, wsProducts, 'جميع المنتجات المصنفة');
 
-    xlsx.utils.book_append_sheet(wb, ws, 'جميع المنتجات المصنفة');
+    // Sheet 2: Categories Guide
+    const directoryRows: any[] = [];
+    for (const [mainCat, subSet] of entries) {
+      const subs = Array.from(subSet).join(' ، ');
+      directoryRows.push({
+        'القسم الرئيسي المعتمد': mainCat,
+        'الأقسام الفرعية التابعة له': subs || 'عام',
+        'ملاحظة الاستخدام': 'يمكنك استخدام هذه الأقسام في ورقة المنتجات أو كتابة أي قسم جديد تريده وسيتم اعتماده آلياً',
+      });
+    }
+
+    const wsDirectory = xlsx.utils.json_to_sheet(directoryRows);
+    wsDirectory['!cols'] = [
+      { wch: 35 }, // القسم الرئيسي المعتمد
+      { wch: 55 }, // الأقسام الفرعية التابعة له
+      { wch: 75 }, // ملاحظة الاستخدام
+    ];
+    xlsx.utils.book_append_sheet(wb, wsDirectory, 'دليل الأقسام والتصنيفات');
+
     return xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
   }
 
@@ -509,7 +698,18 @@ export class ProductsService {
     this.db.categories = newCategories;
   }
 
+  async refreshCmsCategories() {
+    const catTree = await this.getCategoriesTree();
+    this.syncCmsCategories(catTree);
+  }
+
   async create(dto: Partial<Product>) {
+    const price = Number(dto.price) || 0;
+    const originalPrice = dto.originalPrice !== undefined && dto.originalPrice !== null ? Number(dto.originalPrice) : price;
+    const discountPercentage = dto.discountPercentage !== undefined && dto.discountPercentage !== null
+      ? Number(dto.discountPercentage)
+      : (originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0);
+
     const newProduct: Product = {
       id: `prod_${uuidv4().substring(0, 8)}`,
       nameAr: dto.nameAr || '',
@@ -517,12 +717,12 @@ export class ProductsService {
       activeIngredient: dto.activeIngredient || 'غير محدد',
       category: dto.category || 'الأدوية (Medications)',
       subCategory: dto.subCategory || 'عام',
-      price: Number(dto.price) || 0,
-      originalPrice: dto.originalPrice ? Number(dto.originalPrice) : Number(dto.price),
-      discountPercentage: dto.discountPercentage ? Number(dto.discountPercentage) : 0,
-      stock: Number(dto.stock) || 50,
+      price,
+      originalPrice,
+      discountPercentage,
+      stock: dto.stock !== undefined ? Number(dto.stock) : 50,
       isPrescriptionRequired: Boolean(dto.isPrescriptionRequired),
-      isHotDeal: Boolean(dto.isHotDeal),
+      isHotDeal: Boolean(dto.isHotDeal) || (discountPercentage > 15),
       rating: 5.0,
       reviewCount: 1,
       descriptionAr: dto.descriptionAr || '',
@@ -534,6 +734,7 @@ export class ProductsService {
     };
 
     this.db.products.unshift(newProduct);
+    await this.refreshCmsCategories();
     this.db.persist();
     return {
       message: 'تم إضافة المنتج بنجاح إلى مخزون الصيدلية',
@@ -547,10 +748,25 @@ export class ProductsService {
       throw new NotFoundException('المنتج غير موجود');
     }
 
+    const existing = this.db.products[index];
+    const price = dto.price !== undefined ? Number(dto.price) : existing.price;
+    const originalPrice = dto.originalPrice !== undefined ? Number(dto.originalPrice) : (existing.originalPrice || price);
+    let discountPercentage = dto.discountPercentage !== undefined ? Number(dto.discountPercentage) : existing.discountPercentage;
+    if (dto.discountPercentage === undefined && (dto.price !== undefined || dto.originalPrice !== undefined)) {
+      discountPercentage = originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+    }
+
     this.db.products[index] = {
-      ...this.db.products[index],
+      ...existing,
       ...dto,
+      price,
+      originalPrice,
+      discountPercentage,
+      stock: dto.stock !== undefined ? Number(dto.stock) : existing.stock,
+      isPrescriptionRequired: dto.isPrescriptionRequired !== undefined ? Boolean(dto.isPrescriptionRequired) : existing.isPrescriptionRequired,
+      isHotDeal: dto.isHotDeal !== undefined ? Boolean(dto.isHotDeal) : (discountPercentage > 15 || existing.isHotDeal),
     };
+    await this.refreshCmsCategories();
     this.db.persist();
 
     return {
@@ -565,10 +781,49 @@ export class ProductsService {
       throw new NotFoundException('المنتج غير موجود');
     }
     const removed = this.db.products.splice(index, 1)[0];
-    this.db.persist();
+    await this.refreshCmsCategories();
+    this.db.persistNow();
+
+    try {
+      if (this.db.prisma?.product) {
+        await this.db.prisma.product.delete({ where: { id } });
+      }
+    } catch (e) {
+      // ignore if storage is JSON-only
+    }
+
     return {
-      message: 'تم حذف المنتج من الكتالوج',
+      message: 'تم حذف المنتج من الكتالوج بنجاح',
       product: removed,
+    };
+  }
+
+  async clearAll() {
+    const count = this.db.products.length;
+    this.db.products = [];
+
+    // Reset productCount in categories
+    if (Array.isArray(this.db.categories)) {
+      this.db.categories.forEach((c) => {
+        c.productCount = 0;
+      });
+    }
+
+    this.db.persistNow();
+
+    try {
+      if (this.db.prisma?.product) {
+        await this.db.prisma.product.deleteMany({});
+      }
+    } catch (e) {
+      // ignore if storage is JSON-only
+    }
+
+    return {
+      success: true,
+      message: `تم إفراغ كتالوج المنتجات بنجاح (${count} منتج)`,
+      clearedCount: count,
+      totalCatalogCount: 0,
     };
   }
 }

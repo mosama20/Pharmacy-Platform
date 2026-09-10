@@ -85,6 +85,13 @@ const COLOR_PRESETS = [
     iconBg: 'bg-blue-600',
     border: 'border-blue-500/20',
   },
+  {
+    id: 'insurance',
+    label: 'أخضر تأمين وتعاقدات',
+    gradient: 'from-teal-500/10 to-emerald-500/10',
+    iconBg: 'bg-teal-700',
+    border: 'border-teal-500/20',
+  },
 ];
 
 const DEFAULT_CARDS = [
@@ -98,6 +105,18 @@ const DEFAULT_CARDS = [
     gradient: 'from-emerald-500/10 to-teal-500/10',
     iconBg: 'bg-emerald-600',
     order: 1,
+    isVisible: true,
+  },
+  {
+    id: 'card_insurance',
+    title: 'التعاقدات والتأمين الطبي',
+    subtitle: 'سامسونج، توشيبا، يونيكير، أكسا...',
+    icon: 'ShieldCheck',
+    actionType: 'insurance',
+    actionValue: '',
+    gradient: 'from-teal-500/10 to-emerald-500/10',
+    iconBg: 'bg-teal-700',
+    order: 2,
     isVisible: true,
   },
   {
@@ -418,6 +437,8 @@ export const CmsQuickCardsSection = ({
                   <span className="font-bold text-teal-700 dark:text-teal-400 bg-white/70 dark:bg-black/30 px-2 py-0.5 rounded-full">
                     {card.actionType === 'upload'
                       ? 'رفع روشتة'
+                      : card.actionType === 'insurance'
+                      ? 'التعاقدات والتأمين'
                       : card.actionType === 'refill'
                       ? 'دواء شهري'
                       : card.actionType === 'search'
@@ -507,6 +528,7 @@ export const CmsQuickCardsSection = ({
                           className="w-full px-2 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                         >
                           <option value="upload">فتح رفع الروشتة</option>
+                          <option value="insurance">فتح التعاقدات والتأمين الطبي (/insurance)</option>
                           <option value="refill">فتح الدواء الشهري</option>
                           <option value="search">البحث والبدائل الذكية</option>
                           <option value="location">تحديد واختيار المنطقة</option>

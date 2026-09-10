@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { X, PackagePlus, Tag, DollarSign, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Edit3, Tag, DollarSign, Layers, Save, Package } from 'lucide-react';
 import { ImageUploadInput } from '../../common/ImageUploadInput';
 
-export const NewProductModal = ({
+export const EditProductModal = ({
   isOpen,
   onClose,
+  product,
   categories = [],
   onSubmit,
 }) => {
@@ -12,52 +13,78 @@ export const NewProductModal = ({
     nameAr: '',
     nameEn: '',
     activeIngredient: '',
-    category: 'الأدوية (Medications)',
-    subCategory: 'مسكنات وخافض للحرارة',
-    price: 50,
-    originalPrice: 55,
-    stock: 100,
+    category: '',
+    subCategory: '',
+    price: 0,
+    originalPrice: 0,
+    stock: 0,
     isPrescriptionRequired: false,
     isHotDeal: false,
     descriptionAr: '',
     dosage: '',
-    image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=400&q=80',
+    image: '',
   });
   const [customCategory, setCustomCategory] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const categoryOptions = Array.isArray(categories) && categories.length > 0
-    ? categories.map((c) => (typeof c === 'string' ? c : c.name)).filter((n) => n && n !== 'الكل' && !n.includes('Big Save'))
-    : ['الأدوية (Medications)', 'العناية بالبشرة (Skin Care)', 'الفيتامينات والمكملات (Vitamins)', 'الأم والطفل (Mom & Baby)', 'المستلزمات الطبية (Health Care Devices)'];
+  useEffect(() => {
+    if (product) {
+      setFormData({
+        nameAr: product.nameAr || '',
+        nameEn: product.nameEn || '',
+        activeIngredient: product.activeIngredient || '',
+        category: product.category || 'الأدوية (Medications)',
+        subCategory: product.subCategory || 'عام',
+        price: Number(product.price) || 0,
+        originalPrice: Number(product.originalPrice) || Number(product.price) || 0,
+        stock: Number(product.stock) || 0,
+        isPrescriptionRequired: Boolean(product.isPrescriptionRequired),
+        isHotDeal: Boolean(product.isHotDeal),
+        descriptionAr: product.descriptionAr || '',
+        dosage: product.dosage || '',
+        image: product.image || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=400&q=80',
+      });
+      setCustomCategory(false);
+      setError(null);
+    }
+  }, [product]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !product) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
-      await onSubmit(formData);
+      await onSubmit(product.id, formData);
       onClose();
+    } catch (err) {
+      setError(err.message || 'حدث خطأ أثناء تعديل بيانات المنتج');
     } finally {
       setLoading(false);
     }
   };
 
+  const categoryOptions = Array.isArray(categories) && categories.length > 0
+    ? categories.map((c) => (typeof c === 'string' ? c : c.name)).filter((n) => n && n !== 'الكل' && !n.includes('Big Save'))
+    : ['الأدوية (Medications)', 'العناية بالبشرة (Skin Care)', 'الفيتامينات والمكملات (Vitamins)', 'الأم والطفل (Mom & Baby)', 'المستلزمات الطبية (Health Care Devices)'];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 font-cairo">
       <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
+        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-teal-50 via-emerald-50 to-white dark:from-slate-800 dark:to-slate-900">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
-              <PackagePlus className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20">
+              <Edit3 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                إضافة دواء / منتج جديد للمخزون
+              <h3 className="font-black text-slate-900 dark:text-white text-base font-tajawal">
+                تعديل بيانات المنتج
               </h3>
-              <p className="text-xs text-slate-400">
-                تسجيل الدواء وتحديد الأسعار والمادة الفعالة
+              <p className="text-[11px] text-slate-500 font-mono">
+                {product.id}
               </p>
             </div>
           </div>
@@ -69,20 +96,26 @@ export const NewProductModal = ({
           </button>
         </div>
 
+        {/* Error */}
+        {error && (
+          <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+            {error}
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                اسم الدواء (بالعربية):
+                اسم المنتج (بالعربية):
               </label>
               <input
                 type="text"
                 required
-                placeholder="بانادول إكسترا 500 مجم"
                 value={formData.nameAr}
                 onChange={(e) => setFormData({ ...formData, nameAr: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 font-bold"
               />
             </div>
             <div>
@@ -91,7 +124,6 @@ export const NewProductModal = ({
               </label>
               <input
                 type="text"
-                placeholder="Panadol Extra 500mg"
                 value={formData.nameEn}
                 onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
                 className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 font-mono"
@@ -105,7 +137,7 @@ export const NewProductModal = ({
             </label>
             <input
               type="text"
-              placeholder="Paracetamol 500mg + Caffeine 65mg"
+              placeholder="مثال: Paracetamol 500mg"
               value={formData.activeIngredient}
               onChange={(e) => setFormData({ ...formData, activeIngredient: e.target.value })}
               className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
@@ -121,7 +153,7 @@ export const NewProductModal = ({
                 <button
                   type="button"
                   onClick={() => setCustomCategory(!customCategory)}
-                  className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                  className="text-[10px] text-teal-600 dark:text-teal-400 font-bold hover:underline"
                 >
                   {customCategory ? 'اختيار من القائمة' : '+ كتابة قسم جديد'}
                 </button>
@@ -131,10 +163,10 @@ export const NewProductModal = ({
                 <input
                   type="text"
                   required
-                  placeholder="اكتب اسم القسم الرئيسي..."
+                  placeholder="اكتب اسم القسم الرئيسي الجديد..."
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl border border-emerald-500 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl border border-teal-500 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none"
                 />
               ) : (
                 <select
@@ -153,13 +185,14 @@ export const NewProductModal = ({
                 </select>
               )}
             </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 التصنيف الفرعي:
               </label>
               <input
                 type="text"
-                placeholder="مسكنات وخافض للحرارة"
+                placeholder="مثال: مسكنات، ترطيب، إلخ"
                 value={formData.subCategory}
                 onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
                 className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
@@ -184,7 +217,7 @@ export const NewProductModal = ({
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                السعر الأصلي (قبل الخصم):
+                السعر قبل الخصم:
               </label>
               <input
                 type="number"
@@ -210,57 +243,68 @@ export const NewProductModal = ({
             </div>
           </div>
 
-          <div>
-            <ImageUploadInput
-              label="صورة الدواء / المنتج:"
-              placeholder="ارفع صورة المنتج من جهازك أو اسحبها هنا"
-              value={formData.image}
-              onChange={(url) => setFormData({ ...formData, image: url })}
-              folder="products"
-              previewHeight="h-20"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <label className="flex items-center gap-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 cursor-pointer">
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <label className="flex items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
               <input
                 type="checkbox"
                 checked={formData.isPrescriptionRequired}
                 onChange={(e) => setFormData({ ...formData, isPrescriptionRequired: e.target.checked })}
-                className="rounded text-emerald-600 focus:ring-emerald-500"
+                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
               />
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                 يتطلب روشتة طبية (Rx)
               </span>
             </label>
 
-            <label className="flex items-center gap-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 cursor-pointer">
+            <label className="flex items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
               <input
                 type="checkbox"
                 checked={formData.isHotDeal}
                 onChange={(e) => setFormData({ ...formData, isHotDeal: e.target.checked })}
-                className="rounded text-rose-600 focus:ring-rose-500"
+                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
               />
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                إضافة في عروض التوفير الكبرى
+                إدراجه في عروض التوفير
               </span>
             </label>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              وصف مختصر للمنتج:
+            </label>
+            <textarea
+              rows={2}
+              value={formData.descriptionAr}
+              onChange={(e) => setFormData({ ...formData, descriptionAr: e.target.value })}
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div>
+            <ImageUploadInput
+              label="رابط صورة المنتج (أو رفع صورة من الجهاز)"
+              value={formData.image}
+              onChange={(val) => setFormData({ ...formData, image: val })}
+              placeholder="https://..."
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               إلغاء
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
+              className="px-6 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md shadow-teal-600/20 inline-flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
             >
-              {loading ? 'جاري الإضافة...' : 'حفظ وإضافة الدواء'}
+              <Save className="w-4 h-4" />
+              <span>{loading ? 'جاري الحفظ...' : 'حفظ التعديلات'}</span>
             </button>
           </div>
         </form>

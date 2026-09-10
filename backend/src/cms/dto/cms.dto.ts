@@ -35,8 +35,8 @@ export class CreateBannerDto {
   @IsNotEmpty()
   ctaText: string;
 
-  @IsEnum(['upload', 'refill', 'category', 'link', 'url'])
-  actionType: 'upload' | 'refill' | 'category' | 'link' | 'url';
+  @IsEnum(['upload', 'refill', 'insurance', 'category', 'link', 'url'])
+  actionType: 'upload' | 'refill' | 'insurance' | 'category' | 'link' | 'url';
 
   @IsString()
   @IsOptional()
@@ -80,9 +80,9 @@ export class UpdateBannerDto {
   @IsOptional()
   ctaText?: string;
 
-  @IsEnum(['upload', 'refill', 'category', 'link', 'url'])
+  @IsEnum(['upload', 'refill', 'insurance', 'category', 'link', 'url'])
   @IsOptional()
-  actionType?: 'upload' | 'refill' | 'category' | 'link' | 'url';
+  actionType?: 'upload' | 'refill' | 'insurance' | 'category' | 'link' | 'url';
 
   @IsString()
   @IsOptional()

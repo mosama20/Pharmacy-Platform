@@ -62,7 +62,7 @@ export const Navbar = ({
             </div>
             <div className="hidden md:flex items-center gap-4 shrink-0">
               <button
-                onClick={onOpenInsurance}
+                onClick={() => navigate('/insurance')}
                 className="hover:underline flex items-center gap-1 text-emerald-100 hover:text-white cursor-pointer"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
@@ -74,7 +74,7 @@ export const Navbar = ({
                 className="hover:underline flex items-center gap-1 text-emerald-100 hover:text-white cursor-pointer"
               >
                 <Clock className="w-3.5 h-3.5" />
-                <span>باقة الدواء الشهري للمزمن</span>
+                <span>الدواء الشهري للأمراض المزمنة</span>
               </button>
               <span className="text-white/40">|</span>
               <div className="flex items-center gap-1">

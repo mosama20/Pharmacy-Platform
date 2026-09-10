@@ -14,16 +14,23 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Trash2,
+  Edit3,
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { EmptyState } from '../common/EmptyState';
+import { EditProductModal } from '../modals/EditProductModal';
 import { api } from '../../../services/api';
 
 export const ProductsTab = ({
   products = [],
+  categories = [],
   onOpenNewProductModal,
   onOpenExcelImportModal,
   onUpdateStock,
+  onUpdateProduct,
+  onDeleteProduct,
+  onClearCatalog,
   onRefresh,
 }) => {
   const [search, setSearch] = useState('');
@@ -34,6 +41,9 @@ export const ProductsTab = ({
   const [pageSize, setPageSize] = useState(50);
   const [editingStockId, setEditingStockId] = useState(null);
   const [editingStockVal, setEditingStockVal] = useState('');
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   // Safely extract products array whether it's direct array or { data: [...] }
   const safeProducts = useMemo(() => {
@@ -116,8 +126,17 @@ export const ProductsTab = ({
     return filteredProducts.slice(start, start + pageSize);
   }, [filteredProducts, currentPage, pageSize]);
 
-  const handleDownloadTemplate = () => {
-    window.open(api.downloadExcelTemplateUrl(), '_blank');
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+
+  const handleDownloadTemplate = async () => {
+    try {
+      setDownloadingTemplate(true);
+      await api.downloadExcelTemplate();
+    } catch (err) {
+      alert(err.message || 'حدث خطأ أثناء تنزيل قالب الإكسيل');
+    } finally {
+      setDownloadingTemplate(false);
+    }
   };
 
   return (
@@ -152,10 +171,15 @@ export const ProductsTab = ({
           {/* Download Template Button */}
           <button
             onClick={handleDownloadTemplate}
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+            disabled={downloadingTemplate}
+            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-xs disabled:opacity-50"
           >
-            <Download className="w-4 h-4 text-emerald-600" />
-            <span>قالب Excel</span>
+            {downloadingTemplate ? (
+              <RefreshCw className="w-4 h-4 text-emerald-600 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 text-emerald-600" />
+            )}
+            <span>{downloadingTemplate ? 'جاري التحميل...' : 'قالب Excel'}</span>
           </button>
 
           {/* New Product Modal */}
@@ -166,6 +190,18 @@ export const ProductsTab = ({
             <Plus className="w-4 h-4" />
             <span>إضافة صنف يدوي</span>
           </button>
+
+          {/* Clear Catalog Button */}
+          {safeProducts.length > 0 && onClearCatalog && (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+              title="إفراغ كتالوج المنتجات بالكامل والبدء من الصفر"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>إفراغ الكتالوج</span>
+            </button>
+          )}
         </div>
       </PageHeader>
 
@@ -306,6 +342,7 @@ export const ProductsTab = ({
                   <th className="p-4">السعر</th>
                   <th className="p-4">المخزون المتاح</th>
                   <th className="p-4">شروط الصرف</th>
+                  <th className="p-4 text-center">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -479,6 +516,28 @@ export const ProductsTab = ({
                           </span>
                         )}
                       </td>
+
+                      {/* Actions: Edit & Delete */}
+                      <td className="p-4">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditingProduct(p)}
+                            className="p-1.5 rounded-lg text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/50 transition-colors cursor-pointer"
+                            title="تعديل بيانات المنتج"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteProduct && onDeleteProduct(p.id, p.nameAr)}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
+                            title="حذف المنتج من الكتالوج"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -548,6 +607,78 @@ export const ProductsTab = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Clear Catalog Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 font-cairo">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="font-black text-slate-900 dark:text-white text-base font-tajawal">
+                تأكيد إفراغ كتالوج المنتجات بالكامل
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                هل أنت متأكد من رغبتك في حذف جميع الأصناف المسجلة في الكتالوج (<strong>{safeProducts.length.toLocaleString('ar-EG')} صنف</strong>)؟
+                <br />
+                ستتمكن بعد ذلك من إضافة منتجاتك الخاصة أو رفع شيت إكسيل جديد من الصفر دون أي قيود.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={clearing}
+                onClick={() => setShowClearConfirm(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+              >
+                تراجع
+              </button>
+              <button
+                type="button"
+                disabled={clearing}
+                onClick={async () => {
+                  setClearing(true);
+                  try {
+                    await onClearCatalog();
+                    setShowClearConfirm(false);
+                  } finally {
+                    setClearing(false);
+                  }
+                }}
+                className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/20 inline-flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+              >
+                {clearing ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>جاري الإفراغ...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>نعم، إفراغ الكتالوج الآن</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {editingProduct && (
+        <EditProductModal
+          isOpen={Boolean(editingProduct)}
+          product={editingProduct}
+          categories={categories && categories.length > 0 ? categories : mainCategories.filter((c) => c !== 'ALL')}
+          onClose={() => setEditingProduct(null)}
+          onSubmit={async (id, data) => {
+            if (onUpdateProduct) {
+              await onUpdateProduct(id, data);
+            }
+          }}
+        />
       )}
     </div>
   );

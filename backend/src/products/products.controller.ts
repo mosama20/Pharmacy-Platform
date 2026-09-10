@@ -150,6 +150,13 @@ export class ProductsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
+  @Delete('clear-all')
+  async clearAllProducts() {
+    return this.productsService.clearAll();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'PHARMACIST')
   @Delete(':id')
   async deleteProduct(@Param('id') id: string) {
     return this.productsService.remove(id);

@@ -80,9 +80,12 @@ export class PrescriptionsService {
     if (dto.imageBase64 && !rawImages.includes(dto.imageBase64)) {
       rawImages.unshift(dto.imageBase64);
     }
+    if (dto.insuranceCardPhoto && !rawImages.includes(dto.insuranceCardPhoto)) {
+      rawImages.push(dto.insuranceCardPhoto);
+    }
 
-    if (rawImages.length === 0) {
-      throw new BadRequestException('يجب إرفاق صورة واحدة للروشتة على الأقل');
+    if (rawImages.length === 0 && (!dto.requestedItems || dto.requestedItems.length === 0)) {
+      throw new BadRequestException('يجب إرفاق صورة للروشتة أو اختيار صنف دواء واحد على الأقل');
     }
 
     if (rawImages.length > 5) {
@@ -94,7 +97,7 @@ export class PrescriptionsService {
       validateUploadedImage(img);
     }
 
-    const primaryImageUrl = rawImages[0];
+    const primaryImageUrl = rawImages[0] || dto.insuranceCardPhoto || '';
     const patientNotes = dto.patientNotes || dto.notes || dto.customerNotes || '';
 
     const newRx: Prescription = {
@@ -111,9 +114,9 @@ export class PrescriptionsService {
       notes: patientNotes,
       patientNotes: patientNotes,
       allowAlternatives: Boolean(dto.allowAlternatives),
-      hasInsurance: Boolean(dto.hasInsurance),
+      hasInsurance: Boolean(dto.hasInsurance || dto.insuranceCompany),
       insuranceCompany: dto.insuranceCompany || dto.insuranceProvider,
-      insuranceCardNumber: dto.insuranceCardNumber || dto.insuranceNumber,
+      insuranceCardNumber: dto.insuranceCardNumber || dto.insuranceMemberId || dto.insuranceNumber,
       insuranceCardPhoto: dto.insuranceCardPhoto,
       nationalId: dto.nationalId,
       requestedItems: dto.requestedItems || [],

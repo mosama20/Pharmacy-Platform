@@ -118,7 +118,7 @@ export const Footer = () => {
                 <h4 className="font-bold text-white text-sm mb-4">خدماتنا</h4>
                 <ul className="space-y-2.5 text-xs text-slate-400">
                   <li className="hover:text-white cursor-pointer transition-colors">ارفع الروشتة واطلب دواك</li>
-                  <li className="hover:text-white cursor-pointer transition-colors">باقة الدواء الشهري للمزمن</li>
+                  <li className="hover:text-white cursor-pointer transition-colors">خدمة الدواء الشهري للمزمن</li>
                   <li className="hover:text-white cursor-pointer transition-colors">اسأل صيدلي - استشارة فورية</li>
                   <li className="hover:text-white cursor-pointer transition-colors">محرك البحث عن بدائل الأدوية</li>
                   <li className="hover:text-white cursor-pointer transition-colors">عروض وخصومات Big Save</li>
