@@ -26,6 +26,8 @@ export const NotificationBell = ({ onOpenTracking }) => {
     const handleNew = () => loadNotifications();
     const handleRead = () => loadNotifications();
 
+    window.addEventListener('pharmacy_new_notification', handleNew);
+    window.addEventListener('pharmacy_notifications_read', handleRead);
     window.addEventListener('chefaa_new_notification', handleNew);
     window.addEventListener('chefaa_notifications_read', handleRead);
 
@@ -37,6 +39,8 @@ export const NotificationBell = ({ onOpenTracking }) => {
     document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
+      window.removeEventListener('pharmacy_new_notification', handleNew);
+      window.removeEventListener('pharmacy_notifications_read', handleRead);
       window.removeEventListener('chefaa_new_notification', handleNew);
       window.removeEventListener('chefaa_notifications_read', handleRead);
       document.removeEventListener('mousedown', handleClickOutside);

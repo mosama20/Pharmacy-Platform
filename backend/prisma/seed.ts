@@ -15,7 +15,7 @@ async function main() {
   await prisma.user.upsert({
     where: { id: 'usr_admin_1' },
     update: {
-      email: 'admin@chefaa.com',
+      email: 'admin@pharmacy.com',
       password: passwordHash,
       role: Role.ADMIN,
       status: UserStatus.ACTIVE,
@@ -23,7 +23,7 @@ async function main() {
     create: {
       id: 'usr_admin_1',
       name: 'د. أيمن مسعد (المدير الطبي)',
-      email: 'admin@chefaa.com',
+      email: 'admin@pharmacy.com',
       phone: '01000000001',
       password: passwordHash,
       role: Role.ADMIN,
@@ -35,7 +35,7 @@ async function main() {
   await prisma.user.upsert({
     where: { id: 'usr_pharm_1' },
     update: {
-      email: 'pharmacist@chefaa.com',
+      email: 'pharmacist@pharmacy.com',
       password: staffHash,
       role: Role.PHARMACIST,
       status: UserStatus.ACTIVE,
@@ -43,7 +43,7 @@ async function main() {
     create: {
       id: 'usr_pharm_1',
       name: 'د. سارة الصيدلي',
-      email: 'pharmacist@chefaa.com',
+      email: 'pharmacist@pharmacy.com',
       phone: '01000000002',
       password: staffHash,
       role: Role.PHARMACIST,
@@ -56,7 +56,7 @@ async function main() {
   await prisma.user.upsert({
     where: { id: 'usr_cour_1' },
     update: {
-      email: 'courier@chefaa.com',
+      email: 'courier@pharmacy.com',
       password: staffHash,
       role: Role.DELIVERY,
       status: UserStatus.ACTIVE,
@@ -64,7 +64,7 @@ async function main() {
     create: {
       id: 'usr_cour_1',
       name: 'كابتن محمد سمير',
-      email: 'courier@chefaa.com',
+      email: 'courier@pharmacy.com',
       phone: '01000000003',
       password: staffHash,
       role: Role.DELIVERY,
@@ -76,7 +76,7 @@ async function main() {
   await prisma.user.upsert({
     where: { id: 'usr_cust_1' },
     update: {
-      email: 'customer@chefaa.com',
+      email: 'customer@pharmacy.com',
       password: customerHash,
       role: Role.CUSTOMER,
       status: UserStatus.ACTIVE,
@@ -84,7 +84,7 @@ async function main() {
     create: {
       id: 'usr_cust_1',
       name: 'أحمد محمود',
-      email: 'customer@chefaa.com',
+      email: 'customer@pharmacy.com',
       phone: '01111111111',
       password: customerHash,
       role: Role.CUSTOMER,
@@ -209,11 +209,11 @@ async function main() {
 
   // 3. Promo Codes
   await prisma.promoCode.upsert({
-    where: { code: 'CHEFAA2026' },
+    where: { code: 'WELCOME15' },
     update: {},
     create: {
-      id: 'promo_chefaa_2026',
-      code: 'CHEFAA2026',
+      id: 'promo_welcome_15',
+      code: 'WELCOME15',
       discountPercentage: 15,
       minOrderValue: 200,
       maxDiscount: 100,
@@ -243,12 +243,12 @@ async function main() {
     create: {
       id: 'default',
       data: {
-        websiteName: 'المنصة الصيدلانية المتكاملة - شفاء',
+        websiteName: 'المنصة الصيدلانية المتكاملة',
         brandTagline: 'صيدليتك الذكية في جيبك - توصيل سريع واستشارات فورية',
         brandDescription: 'منصة رعاية صحية متطورة لتوصيل الأدوية والروشتات ومتابعة الأمراض المزمنة في مصر',
         hotline: '19011',
         whatsapp: '+201000000000',
-        supportEmail: 'support@chefaa.com',
+        supportEmail: 'support@pharmacy.com',
         deliveryFee: 25,
         freeDeliveryThreshold: 500,
         estimatedDeliveryMin: 45,

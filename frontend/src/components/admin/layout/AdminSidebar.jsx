@@ -13,6 +13,7 @@ import {
   Store,
   ChevronLeft,
   ChevronRight,
+  Database,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useCms } from '../../../context/CmsContext';
@@ -134,6 +135,18 @@ export const AdminSidebar = ({
           id: 'analytics',
           label: 'التقارير والمؤشرات المالية',
           icon: BarChart3,
+          visible: isAdmin,
+        },
+      ],
+    },
+    {
+      groupTitle: 'أمان وبيانات النظام',
+      visible: isAdmin,
+      items: [
+        {
+          id: 'backup',
+          label: 'النسخ الاحتياطي وأمان النظام',
+          icon: Database,
           visible: isAdmin,
         },
       ],

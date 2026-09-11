@@ -1,9 +1,10 @@
 // Local In-App & Browser Push Notification Manager
-const NOTIFICATIONS_STORAGE_KEY = 'chefaa_customer_notifications_v1';
+const NOTIFICATIONS_STORAGE_KEY = 'pharmacy_customer_notifications_v1';
+const LEGACY_STORAGE_KEY = 'chefaa_customer_notifications_v1';
 
 export const getStoredNotifications = () => {
   try {
-    const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+    const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch (e) {
     return [];
@@ -39,6 +40,7 @@ export const pushCustomerNotification = (notif) => {
     }
 
     // Dispatch event so NotificationBell updates in real-time across tabs/components
+    window.dispatchEvent(new CustomEvent('pharmacy_new_notification', { detail: newEntry }));
     window.dispatchEvent(new CustomEvent('chefaa_new_notification', { detail: newEntry }));
 
     return newEntry;
@@ -51,6 +53,7 @@ export const markAllNotificationsAsRead = () => {
   try {
     const list = getStoredNotifications().map((n) => ({ ...n, read: true }));
     localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent('pharmacy_notifications_read'));
     window.dispatchEvent(new CustomEvent('chefaa_notifications_read'));
     return list;
   } catch (e) {

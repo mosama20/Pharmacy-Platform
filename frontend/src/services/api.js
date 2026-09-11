@@ -400,7 +400,7 @@ export const api = {
   },
 
   downloadExcelTemplate: async () => {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('chefaa_token');
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('pharmacy_token') || localStorage.getItem('chefaa_token');
     const headers = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -426,7 +426,7 @@ export const api = {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'chefaa_products_template.xlsx';
+    a.download = 'pharmacy_products_template.xlsx';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -434,7 +434,7 @@ export const api = {
   },
 
   downloadExcelTemplateUrl: () => {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('chefaa_token');
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('pharmacy_token') || localStorage.getItem('chefaa_token');
     return `${API_BASE}/products/template-excel${token ? `?token=${encodeURIComponent(token)}` : ''}`;
   },
 
@@ -469,8 +469,8 @@ export const api = {
         createdAt: new Date().toISOString(),
       };
       try {
-        const local = JSON.parse(localStorage.getItem('chefaa_demo_prescriptions') || '[]');
-        localStorage.setItem('chefaa_demo_prescriptions', JSON.stringify([demoRx, ...local]));
+        const local = JSON.parse(localStorage.getItem('pharmacy_demo_prescriptions') || localStorage.getItem('chefaa_demo_prescriptions') || '[]');
+        localStorage.setItem('pharmacy_demo_prescriptions', JSON.stringify([demoRx, ...local]));
       } catch (_) {}
       return {
         message: 'تم استلام الروشتة بنجاح (وضع المعاينة)',
@@ -506,8 +506,8 @@ export const api = {
         createdAt: new Date().toISOString(),
       };
       try {
-        const local = JSON.parse(localStorage.getItem('chefaa_demo_prescriptions') || '[]');
-        localStorage.setItem('chefaa_demo_prescriptions', JSON.stringify([demoRx, ...local]));
+        const local = JSON.parse(localStorage.getItem('pharmacy_demo_prescriptions') || localStorage.getItem('chefaa_demo_prescriptions') || '[]');
+        localStorage.setItem('pharmacy_demo_prescriptions', JSON.stringify([demoRx, ...local]));
       } catch (_) {}
       return {
         message: 'تم استلام الروشتة بنجاح (وضع المعاينة)',
@@ -534,7 +534,7 @@ export const api = {
     } catch (_) {}
 
     try {
-      const local = JSON.parse(localStorage.getItem('chefaa_demo_prescriptions') || '[]');
+      const local = JSON.parse(localStorage.getItem('pharmacy_demo_prescriptions') || localStorage.getItem('chefaa_demo_prescriptions') || '[]');
       if (status && status !== 'ALL') {
         return local.filter((p) => p.status === status);
       }
@@ -560,7 +560,7 @@ export const api = {
     } catch (_) {}
 
     try {
-      return JSON.parse(localStorage.getItem('chefaa_demo_prescriptions') || '[]');
+      return JSON.parse(localStorage.getItem('pharmacy_demo_prescriptions') || localStorage.getItem('chefaa_demo_prescriptions') || '[]');
     } catch (_) {
       return [];
     }
@@ -1125,6 +1125,111 @@ export const api = {
       headers: getHeaders(true),
     });
     return res.json();
+  },
+
+  // ----------------------------------------------------
+  // Backup & System Reset Services (Google Drive & Local)
+  // ----------------------------------------------------
+  getBackupConfig: async () => {
+    const res = await fetch(`${API_BASE}/backup/config`, {
+      headers: getHeaders(true),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'فشل جلب إعدادات النسخ الاحتياطي');
+    return json;
+  },
+
+  saveBackupConfig: async (configData) => {
+    const res = await fetch(`${API_BASE}/backup/config`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(configData),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'فشل حفظ إعدادات النسخ الاحتياطي');
+    return json;
+  },
+
+  testGoogleDriveConnection: async (credentialsJson, folderId) => {
+    const res = await fetch(`${API_BASE}/backup/test-drive`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ credentialsJson, folderId }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'فشل فحص الاتصال بـ Google Drive');
+    return json;
+  },
+
+  listBackups: async () => {
+    const res = await fetch(`${API_BASE}/backup/list`, {
+      headers: getHeaders(true),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'فشل جلب قائمة النسخ الاحتياطية');
+    return json;
+  },
+
+  createBackup: async (uploadToDrive = true) => {
+    const res = await fetch(`${API_BASE}/backup/create`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ uploadToDrive }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'فشل إنشاء النسخة الاحتياطية');
+    return json;
+  },
+
+  downloadBackupUrl: (filename) => {
+    return `${API_BASE}/backup/download/${encodeURIComponent(filename)}`;
+  },
+
+  deleteBackup: async (filename) => {
+    const res = await fetch(`${API_BASE}/backup/${encodeURIComponent(filename)}`, {
+      method: 'DELETE',
+      headers: getHeaders(true),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'فشل حذف النسخة الاحتياطية');
+    return json;
+  },
+
+  restoreBackup: async (fileOrFormData, existingFilename) => {
+    let body;
+    let headers = {};
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    if (fileOrFormData instanceof FormData) {
+      body = fileOrFormData;
+    } else if (fileOrFormData instanceof File || fileOrFormData instanceof Blob) {
+      body = new FormData();
+      body.append('backupFile', fileOrFormData);
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify({ filename: existingFilename });
+    }
+
+    const res = await fetch(`${API_BASE}/backup/restore`, {
+      method: 'POST',
+      headers,
+      body,
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'فشل استعادة النسخة الاحتياطية');
+    return json;
+  },
+
+  factoryResetSystem: async (passwordVerify, confirmationCode, createSafetyBackup = true) => {
+    const res = await fetch(`${API_BASE}/backup/factory-reset`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ passwordVerify, confirmationCode, createSafetyBackup }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'فشل تنفيذ إعادة ضبط المصنع');
+    return json;
   },
 };
 

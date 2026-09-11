@@ -6,7 +6,7 @@ export class AppController {
   getApiRoot() {
     return {
       status: 'ok',
-      message: 'Chefaa Healthcare & Pharmacy Platform API is running 🚀',
+      message: 'Smart Pharmacy Platform API is running 🚀',
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       endpoints: {

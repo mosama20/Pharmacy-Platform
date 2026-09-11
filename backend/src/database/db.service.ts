@@ -322,6 +322,14 @@ export interface PlatformSettings {
   smtpFrom?: string;
   adminNotificationEmail?: string;
   emailNotificationsEnabled?: boolean;
+  // Backup & Google Drive Settings
+  autoBackupEnabled?: boolean;
+  autoBackupIntervalHours?: number;
+  lastBackupAt?: string;
+  googleDriveEnabled?: boolean;
+  googleDriveFolderId?: string;
+  googleDriveServiceAccountJson?: string;
+  googleDriveKeepCount?: number;
 }
 
 @Injectable()
@@ -576,6 +584,12 @@ export class DbService implements OnModuleInit {
     smtpFrom: process.env.SMTP_FROM || 'صيدلية د. شيماء <wep.osama5@gmail.com>',
     adminNotificationEmail: process.env.ADMIN_NOTIFICATION_EMAIL || 'wep.osama5@gmail.com',
     emailNotificationsEnabled: true,
+    autoBackupEnabled: true,
+    autoBackupIntervalHours: 24,
+    googleDriveEnabled: !!process.env.GOOGLE_DRIVE_FOLDER_ID,
+    googleDriveFolderId: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
+    googleDriveServiceAccountJson: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON || '',
+    googleDriveKeepCount: 10,
   };
 
   private storageDir = path.join(process.cwd(), 'data');

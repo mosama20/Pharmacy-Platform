@@ -167,7 +167,7 @@ export const ImageViewerModal = ({
     if (!imageUrl) return;
     const a = document.createElement('a');
     a.href = imageUrl;
-    a.download = `chefaa-prescription-${Date.now()}.jpg`;
+    a.download = `prescription-${Date.now()}.jpg`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

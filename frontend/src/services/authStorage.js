@@ -1,16 +1,19 @@
 /**
- * Chefaa Enterprise Auth Storage & Multi-Tab Synchronization Service
+ * Enterprise Auth Storage & Multi-Tab Synchronization Service
  * Handles secure session persistence, token lifecycle, and cross-tab reactive updates.
  */
 
 const KEYS = {
-  ACCESS_TOKEN: 'chefaa_access_token',
-  REFRESH_TOKEN: 'chefaa_refresh_token',
-  USER: 'chefaa_user',
+  ACCESS_TOKEN: 'pharmacy_access_token',
+  REFRESH_TOKEN: 'pharmacy_refresh_token',
+  USER: 'pharmacy_user',
   // Legacy aliases for backward compatibility
   LEGACY_ACCESS_TOKEN: 'auth_token',
-  LEGACY_ACCESS_TOKEN_ALT: 'chefaa_token',
+  LEGACY_ACCESS_TOKEN_ALT: 'pharmacy_token',
+  OLD_ACCESS_TOKEN: 'chefaa_access_token',
+  OLD_ACCESS_TOKEN_ALT: 'chefaa_token',
   LEGACY_USER: 'auth_user',
+  OLD_USER: 'chefaa_user',
 };
 
 class AuthStorage {
@@ -26,20 +29,27 @@ class AuthStorage {
       localStorage.getItem(KEYS.ACCESS_TOKEN) ||
       localStorage.getItem(KEYS.LEGACY_ACCESS_TOKEN) ||
       localStorage.getItem(KEYS.LEGACY_ACCESS_TOKEN_ALT) ||
+      localStorage.getItem(KEYS.OLD_ACCESS_TOKEN) ||
+      localStorage.getItem(KEYS.OLD_ACCESS_TOKEN_ALT) ||
       null
     );
   }
 
   getRefreshToken() {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(KEYS.REFRESH_TOKEN) || null;
+    return (
+      localStorage.getItem(KEYS.REFRESH_TOKEN) ||
+      localStorage.getItem('chefaa_refresh_token') ||
+      null
+    );
   }
 
   getUser() {
     if (typeof window === 'undefined') return null;
     const raw =
       localStorage.getItem(KEYS.USER) ||
-      localStorage.getItem(KEYS.LEGACY_USER);
+      localStorage.getItem(KEYS.LEGACY_USER) ||
+      localStorage.getItem(KEYS.OLD_USER);
     if (!raw) return null;
     try {
       return JSON.parse(raw);
@@ -90,6 +100,10 @@ class AuthStorage {
     localStorage.removeItem(KEYS.LEGACY_ACCESS_TOKEN);
     localStorage.removeItem(KEYS.LEGACY_ACCESS_TOKEN_ALT);
     localStorage.removeItem(KEYS.LEGACY_USER);
+    localStorage.removeItem(KEYS.OLD_ACCESS_TOKEN);
+    localStorage.removeItem(KEYS.OLD_ACCESS_TOKEN_ALT);
+    localStorage.removeItem(KEYS.OLD_USER);
+    localStorage.removeItem('chefaa_refresh_token');
 
     this._dispatchLocalEvent('auth:session_cleared');
   }

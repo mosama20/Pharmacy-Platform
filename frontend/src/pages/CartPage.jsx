@@ -268,7 +268,7 @@ export const CartPage = () => {
                   type="text"
                   value={promoInput}
                   onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                  placeholder="مثال: CHEFAA10"
+                  placeholder="مثال: WELCOME15"
                   className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-mono tracking-wider text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500"
                 />
                 <button

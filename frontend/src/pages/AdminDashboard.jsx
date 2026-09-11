@@ -33,6 +33,7 @@ import { AnalyticsTab } from '../components/admin/tabs/AnalyticsTab';
 import { CourierView } from '../components/admin/tabs/CourierView';
 import { CmsTab } from '../components/admin/tabs/CmsTab';
 import { InsuranceTab } from '../components/admin/tabs/InsuranceTab';
+import { SystemBackupTab } from '../components/admin/tabs/SystemBackupTab';
 
 export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
   const { user, login, logout, isAdmin, isPharmacist, isCourier, isSupport } = useAuth();
@@ -687,6 +688,9 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
         />
       )}
 
+      {/* 10. System Backup & Factory Reset Tab */}
+      {activeTab === 'backup' && <SystemBackupTab />}
+
       {/* Global Admin Modals */}
       {selectedOrderForDetail && (
         <OrderDetailModal
@@ -762,3 +766,4 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
     </AdminLayout>
   );
 };
+

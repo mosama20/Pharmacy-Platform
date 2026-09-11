@@ -11,7 +11,7 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Chefaa UI Error caught by boundary:', error?.message);
+    console.error('Pharmacy UI Error caught by boundary:', error?.message);
   }
 
   handleReload = () => {

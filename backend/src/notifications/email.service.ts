@@ -373,4 +373,41 @@ export class EmailService {
       return { success: false, error: err.message };
     }
   }
+
+  async sendAdminCustomAlert(subject: string, messageContent: string): Promise<{ success: boolean; error?: string }> {
+    const adminEmail =
+      this.db.settings?.adminNotificationEmail ||
+      process.env.ADMIN_NOTIFICATION_EMAIL ||
+      'wep.osama5@gmail.com';
+
+    const transporter = this.getTransporter();
+    const formattedHtml = `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="utf-8"></head>
+<body style="font-family: Cairo, Tahoma, sans-serif; background: #f8fafc; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0;">
+    <div style="white-space: pre-line; line-height: 1.8;">${messageContent}</div>
+  </div>
+</body>
+</html>`;
+
+    if (!transporter) {
+      this.logger.log(`[MOCK EMAIL] Admin alert to: ${adminEmail} | ${subject}`);
+      return { success: true };
+    }
+
+    try {
+      await transporter.sendMail({
+        from: this.getFromAddress(),
+        to: adminEmail,
+        subject,
+        html: formattedHtml,
+      });
+      return { success: true };
+    } catch (err: any) {
+      this.logger.error(`Failed to send admin custom alert email: ${err.message}`);
+      return { success: false, error: err.message };
+    }
+  }
 }

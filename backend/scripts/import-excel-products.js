@@ -81,10 +81,10 @@ for (const row of rawRows) {
   const originalPrice = isHotDeal ? Math.round(price * (1 + discountPercentage / 100)) : price;
 
   cleanedProducts.push({
-    id: `prod_chf_${idCounter}`,
+    id: `prod_med_${idCounter}`,
     nameAr,
     nameEn,
-    brand: brand || 'شفاء',
+    brand: brand || 'عام',
     activeIngredient,
     category,
     price,
@@ -95,7 +95,7 @@ for (const row of rawRows) {
     isHotDeal,
     rating: Number((4.5 + (idCounter % 5) * 0.1).toFixed(1)),
     reviewCount: 20 + (idCounter % 280),
-    descriptionAr: desc || `منتج ${nameAr} أصلي ومصرح به من صيدليات شفاء وموردين معتمدين.`,
+    descriptionAr: desc || `منتج ${nameAr} أصلي ومصرح به ومطابق للمواصفات القياسية.`,
     dosage: isRx ? 'حسب إرشادات الطبيب أو الصيدلي' : 'يستخدم حسب إرشادات النشرة الطبية المرفقة.',
     image,
     tags: [brand, category, isRx ? 'روشتة' : 'عناية', 'صيدلية'].filter(Boolean),

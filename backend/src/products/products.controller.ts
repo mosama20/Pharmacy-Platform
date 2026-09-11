@@ -85,7 +85,7 @@ export class ProductsController {
     );
     res.setHeader(
       'Content-Disposition',
-      'attachment; filename="chefaa_products_template.xlsx"',
+      'attachment; filename="pharmacy_products_template.xlsx"',
     );
     return res.send(buffer);
   }
