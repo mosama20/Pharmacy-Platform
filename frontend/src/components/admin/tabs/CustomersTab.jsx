@@ -21,6 +21,8 @@ import {
   X,
   Lock,
   RefreshCw,
+  Coins,
+  Award,
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { EmptyState } from '../common/EmptyState';
@@ -47,6 +49,13 @@ export const CustomersTab = ({
   const [newPassword, setNewPassword] = useState('');
   const [passwordSuccessMsg, setPasswordSuccessMsg] = useState('');
   const [passwordErrorMsg, setPasswordErrorMsg] = useState('');
+
+  // Points Modal states
+  const [pointsModalUser, setPointsModalUser] = useState(null);
+  const [pointsInputValue, setPointsInputValue] = useState(0);
+  const [pointsReason, setPointsReason] = useState('');
+  const [pointsSuccessMsg, setPointsSuccessMsg] = useState('');
+  const [pointsErrorMsg, setPointsErrorMsg] = useState('');
 
   // Stats calculation
   const stats = useMemo(() => {
@@ -142,6 +151,41 @@ export const CustomersTab = ({
       }, 1200);
     } catch (err) {
       setPasswordErrorMsg(err.message || 'فشل إعادة تعيين كلمة المرور');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleOpenPointsModal = (user) => {
+    setPointsModalUser(user);
+    setPointsInputValue(user.points !== undefined ? user.points : 0);
+    setPointsReason('');
+    setPointsSuccessMsg('');
+    setPointsErrorMsg('');
+  };
+
+  const handleSavePoints = async (e) => {
+    e.preventDefault();
+    if (!pointsModalUser) return;
+    const num = Number(pointsInputValue);
+    if (isNaN(num) || num < 0) {
+      setPointsErrorMsg('يرجى إدخال عدد نقاط صحيح وموجب');
+      return;
+    }
+
+    setActionLoadingId(pointsModalUser.id);
+    setPointsErrorMsg('');
+    setPointsSuccessMsg('');
+
+    try {
+      await api.updateUserPoints(pointsModalUser.id, num, pointsReason);
+      setPointsSuccessMsg('تم تحديث رصيد النقاط بنجاح!');
+      if (onRefreshUsers) await onRefreshUsers();
+      setTimeout(() => {
+        setPointsModalUser(null);
+      }, 1100);
+    } catch (err) {
+      setPointsErrorMsg(err.message || 'فشل تحديث رصيد النقاط');
     } finally {
       setActionLoadingId(null);
     }
@@ -326,6 +370,7 @@ export const CustomersTab = ({
                   <th className="p-4">صاحب الحساب</th>
                   <th className="p-4">بيانات الاتصال</th>
                   <th className="p-4">الرتبة والصلاحية</th>
+                  <th className="p-4">نقاط الولاء</th>
                   <th className="p-4">حالة الحساب</th>
                   <th className="p-4">المدينة / العنوان</th>
                   <th className="p-4">تاريخ الإنشاء</th>
@@ -388,6 +433,24 @@ export const CustomersTab = ({
                         </span>
                       </td>
 
+                      {/* Loyalty Points */}
+                      <td className="p-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-mono font-black text-xs border border-amber-200/60 dark:border-amber-800/60 shadow-xs">
+                            <Coins className="w-3.5 h-3.5 text-amber-500" />
+                            <span>{u.points !== undefined ? u.points : 0}</span>
+                            <span className="text-[10px] font-normal text-amber-600/70">نقطة</span>
+                          </span>
+                          <button
+                            onClick={() => handleOpenPointsModal(u)}
+                            title="تعديل رصيد النقاط"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+
                       {/* Status */}
                       <td className="p-4">
                         {isSuspended ? (
@@ -441,6 +504,15 @@ export const CustomersTab = ({
                             className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-all cursor-pointer"
                           >
                             <Edit3 className="w-4 h-4" />
+                          </button>
+
+                          {/* Adjust Loyalty Points */}
+                          <button
+                            onClick={() => handleOpenPointsModal(u)}
+                            title="تعديل رصيد نقاط الولاء"
+                            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all cursor-pointer"
+                          >
+                            <Coins className="w-4 h-4" />
                           </button>
 
                           {/* Reset Password */}
@@ -632,6 +704,109 @@ export const CustomersTab = ({
                 type="button"
                 onClick={() => setPasswordModalUser(null)}
                 className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal 3: Loyalty Points Adjustment Modal */}
+      {pointsModalUser && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form
+            onSubmit={handleSavePoints}
+            className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-2xl text-right animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
+                  <Coins className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                  تعديل رصيد نقاط العميل
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPointsModalUser(null)}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">العميل:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{pointsModalUser.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">الرصيد الحالي:</span>
+                <span className="font-mono font-black text-amber-600 dark:text-amber-400">{pointsModalUser.points || 0} نقطة</span>
+              </div>
+            </div>
+
+            {pointsSuccessMsg && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{pointsSuccessMsg}</span>
+              </div>
+            )}
+
+            {pointsErrorMsg && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{pointsErrorMsg}</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                الرصيد الجديد للنقاط
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={pointsInputValue}
+                  onChange={(e) => setPointsInputValue(e.target.value)}
+                  className="w-full pr-3.5 pl-14 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-mono font-bold text-amber-600 dark:text-amber-400 focus:outline-none focus:border-amber-500"
+                />
+                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">نقطة</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                سبب التعديل / الملاحظة (اختياري)
+              </label>
+              <input
+                type="text"
+                placeholder="مثال: مكافأة ولاء، تعويض، تسوية يدوية..."
+                value={pointsReason}
+                onChange={(e) => setPointsReason(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+              />
+              <span className="text-[10px] text-slate-400 block">
+                سيتم توثيق هذا الإجراء في سجل الرقابة وتاريخ العمليات (Audit Log).
+              </span>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={actionLoadingId === pointsModalUser.id}
+                className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md shadow-amber-600/20 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {actionLoadingId === pointsModalUser.id ? 'جاري الحفظ...' : 'حفظ الرصيد الجديد'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPointsModalUser(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer"
               >
                 إلغاء
               </button>

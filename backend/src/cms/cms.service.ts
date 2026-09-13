@@ -74,14 +74,18 @@ export class CmsService {
     return this.db.promoCodes;
   }
 
-  validatePromoCode(code: string, cartTotal: number): PromoCode {
+  validatePromoCode(
+    code: string,
+    cartTotal: number,
+    items?: Array<{ productId?: string; category?: string; price: number; quantity: number }>,
+  ): PromoCode & { eligibleSubtotal?: number; calculatedDiscount?: number } {
     const promo = this.db.promoCodes.find(
       (p) => p.code.toUpperCase() === code.toUpperCase() && p.isActive
     );
     if (!promo) {
       throw new BadRequestException('كود الخصم غير صحيح أو غير مفعل');
     }
-    if (new Date(promo.expiresAt) < new Date()) {
+    if (promo.expiresAt && new Date(promo.expiresAt) < new Date()) {
       throw new BadRequestException('عذراً، انتهت صلاحية كود الخصم');
     }
     if (promo.usageLimit && promo.timesUsed >= promo.usageLimit) {
@@ -90,7 +94,45 @@ export class CmsService {
     if (cartTotal < promo.minOrderValue) {
       throw new BadRequestException(`الحد الأدنى لتطبيق هذا الكوبون هو ${promo.minOrderValue} ج.م`);
     }
-    return promo;
+
+    // Category restriction check
+    let eligibleSubtotal = cartTotal;
+    if (promo.applicableCategory && promo.applicableCategory.trim() && promo.applicableCategory !== 'ALL') {
+      const targetCat = promo.applicableCategory.trim().toLowerCase();
+      if (items && items.length > 0) {
+        const matchingItems = items.filter((item) => {
+          let itemCat = item.category?.toLowerCase() || '';
+          if (!itemCat && item.productId) {
+            const prod = this.db.products.find((p) => p.id === item.productId);
+            if (prod) itemCat = (prod.category || '').toLowerCase();
+          }
+          return itemCat === targetCat || itemCat.includes(targetCat) || targetCat.includes(itemCat);
+        });
+
+        if (matchingItems.length === 0) {
+          throw new BadRequestException(`عذراً، هذا الكوبون مخصص فقط لمنتجات قسم (${promo.applicableCategory})`);
+        }
+
+        eligibleSubtotal = matchingItems.reduce(
+          (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1),
+          0,
+        );
+      }
+    }
+
+    let calculatedDiscount = 0;
+    if (promo.discountPercentage && promo.discountPercentage > 0) {
+      calculatedDiscount = Math.min(
+        Math.round((eligibleSubtotal * promo.discountPercentage) / 100),
+        promo.maxDiscount || 9999,
+      );
+    }
+
+    return {
+      ...promo,
+      eligibleSubtotal,
+      calculatedDiscount,
+    };
   }
 
   createPromoCode(data: Omit<PromoCode, 'id' | 'timesUsed'>): PromoCode {
@@ -100,6 +142,8 @@ export class CmsService {
       id: `promo_${Date.now()}`,
       timesUsed: 0,
       isActive: true,
+      applicableCategory: data.applicableCategory || undefined,
+      isFreeShipping: Boolean(data.isFreeShipping),
       ...data,
       code: data.code.toUpperCase(),
     };
@@ -169,6 +213,15 @@ export class CmsService {
       }
       if (this.db.settings.refillFreeDelivery === undefined) {
         this.db.settings.refillFreeDelivery = true;
+      }
+      if (!this.db.settings.loyaltyPoints) {
+        this.db.settings.loyaltyPoints = {
+          isEnabled: true,
+          spendingUnit: 10,
+          pointsPerUnit: 1,
+          pointRedemptionValue: 0.1,
+          minRedeemPoints: 50,
+        };
       }
     }
     if (this.db.settings && Array.isArray(this.db.settings.quickCards)) {

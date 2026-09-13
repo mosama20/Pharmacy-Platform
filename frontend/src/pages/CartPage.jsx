@@ -15,8 +15,10 @@ import {
   AlertCircle,
   Sparkles,
   Pill,
+  Coins,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useCms } from '../context/CmsContext';
 
 export const CartPage = () => {
   const navigate = useNavigate();
@@ -32,6 +34,12 @@ export const CartPage = () => {
     deliveryFee,
     total,
   } = useCart();
+  const { settings } = useCms();
+
+  const loyalty = settings?.loyaltyPoints || { isEnabled: true, spendingUnit: 10, pointsPerUnit: 1 };
+  const unit = Number(loyalty.spendingUnit) > 0 ? Number(loyalty.spendingUnit) : 10;
+  const ptsPerUnit = Number(loyalty.pointsPerUnit) > 0 ? Number(loyalty.pointsPerUnit) : 1;
+  const estimatedPoints = loyalty.isEnabled !== false ? Math.floor(total / unit) * ptsPerUnit : 0;
 
   const [promoInput, setPromoInput] = useState('');
   const [promoMessage, setPromoMessage] = useState(null);
@@ -330,6 +338,16 @@ export const CartPage = () => {
                     <span className="text-xs font-bold">ج.م</span>
                   </div>
                 </div>
+
+                {estimatedPoints > 0 && (
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <Coins className="w-4 h-4 text-amber-500" />
+                      <span>نقاط الولاء المكتسبة:</span>
+                    </span>
+                    <span className="font-mono font-black">+{estimatedPoints} نقطة 🎁</span>
+                  </div>
+                )}
               </div>
 
               {/* Proceed to Checkout CTA */}

@@ -738,6 +738,7 @@ export const AdminDashboard = ({ onBackToStore, initialTab, portalType }) => {
         isOpen={isNewCouponModalOpen}
         onClose={() => setIsNewCouponModalOpen(false)}
         onSubmit={handleCreateCoupon}
+        categories={cmsCategories}
       />
 
       <NewArticleModal

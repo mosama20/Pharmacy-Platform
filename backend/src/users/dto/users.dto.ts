@@ -3,6 +3,9 @@ import {
   IsString,
   IsNotEmpty,
   MinLength,
+  IsNumber,
+  Min,
+  IsOptional,
 } from 'class-validator';
 
 export class UpdateUserStatusDto {
@@ -21,3 +24,14 @@ export class AdminResetPasswordDto {
   @MinLength(6, { message: 'يجب أن لا تقل كلمة المرور عن 6 أحرف' })
   password: string;
 }
+
+export class UpdateUserPointsDto {
+  @IsNumber({}, { message: 'عدد النقاط يجب أن يكون رقماً' })
+  @Min(0, { message: 'عدد النقاط لا يمكن أن يكون سالباً' })
+  points: number;
+
+  @IsString()
+  @IsOptional()
+  reason?: string;
+}
+

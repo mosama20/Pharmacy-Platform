@@ -162,6 +162,9 @@ export class ValidatePromoCodeDto {
   @IsNumber()
   @Min(0)
   cartTotal: number;
+
+  @IsOptional()
+  items?: any[];
 }
 
 export class CreatePromoCodeDto {
@@ -170,7 +173,7 @@ export class CreatePromoCodeDto {
   code: string;
 
   @IsNumber()
-  @Min(1)
+  @Min(0)
   @Max(100)
   discountPercentage: number;
 
@@ -193,6 +196,14 @@ export class CreatePromoCodeDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsString()
+  @IsOptional()
+  applicableCategory?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isFreeShipping?: boolean;
 }
 
 export class UpdatePromoCodeDto {
@@ -201,7 +212,7 @@ export class UpdatePromoCodeDto {
   code?: string;
 
   @IsNumber()
-  @Min(1)
+  @Min(0)
   @Max(100)
   @IsOptional()
   discountPercentage?: number;
@@ -228,6 +239,14 @@ export class UpdatePromoCodeDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsString()
+  @IsOptional()
+  applicableCategory?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isFreeShipping?: boolean;
 }
 
 // --- Articles ---

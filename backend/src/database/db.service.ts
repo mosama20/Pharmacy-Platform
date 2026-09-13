@@ -204,6 +204,8 @@ export interface PromoCode {
   usageLimit: number;
   timesUsed: number;
   isActive: boolean;
+  applicableCategory?: string;
+  isFreeShipping?: boolean;
 }
 
 export interface ArticleItem {
@@ -330,6 +332,14 @@ export interface PlatformSettings {
   googleDriveFolderId?: string;
   googleDriveServiceAccountJson?: string;
   googleDriveKeepCount?: number;
+  // Loyalty Points Program Settings
+  loyaltyPoints?: {
+    isEnabled: boolean;
+    spendingUnit: number;         // e.g. every 10 EGP
+    pointsPerUnit: number;        // e.g. earns 1 point
+    pointRedemptionValue: number; // e.g. 0.1 EGP per point (100 pts = 10 EGP)
+    minRedeemPoints: number;      // e.g. min 50 points to redeem
+  };
 }
 
 @Injectable()
@@ -372,6 +382,13 @@ export class DbService implements OnModuleInit {
     seoKeywords: 'صيدلية اونلاين, دواء, توصيل ادوية, روشتة, دواء شهري, مستحضرات تجميل, فيتامينات',
     refillDiscountPercent: 15,
     refillFreeDelivery: true,
+    loyaltyPoints: {
+      isEnabled: true,
+      spendingUnit: 10,
+      pointsPerUnit: 1,
+      pointRedemptionValue: 0.1,
+      minRedeemPoints: 50,
+    },
     socialLinks: {
       facebook: 'https://facebook.com',
       instagram: 'https://instagram.com',

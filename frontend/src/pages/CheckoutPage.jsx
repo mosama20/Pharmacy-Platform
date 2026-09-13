@@ -21,6 +21,7 @@ import {
   ArrowRight,
   ArrowLeft,
   FileText,
+  Coins,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +38,11 @@ export const CheckoutPage = () => {
   const { selectedGovernorate, selectedDistrict } = useLocation();
   const { settings } = useCms();
   const outletCtx = useOutletContext() || {};
+
+  const loyalty = settings?.loyaltyPoints || { isEnabled: true, spendingUnit: 10, pointsPerUnit: 1 };
+  const unit = Number(loyalty.spendingUnit) > 0 ? Number(loyalty.spendingUnit) : 10;
+  const ptsPerUnit = Number(loyalty.pointsPerUnit) > 0 ? Number(loyalty.pointsPerUnit) : 1;
+  const estimatedPoints = loyalty.isEnabled !== false ? Math.floor(total / unit) * ptsPerUnit : 0;
 
   const [customerName, setCustomerName] = useState(user?.name || '');
   const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
@@ -744,6 +750,16 @@ export const CheckoutPage = () => {
                   <span className="text-xs font-bold">ج.م</span>
                 </div>
               </div>
+
+              {estimatedPoints > 0 && (
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <Coins className="w-4 h-4 text-amber-500" />
+                    <span>ستربح من هذا الطلب:</span>
+                  </span>
+                  <span className="font-mono font-black">+{estimatedPoints} نقطة ولاء 🎁</span>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}

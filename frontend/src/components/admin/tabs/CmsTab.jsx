@@ -12,6 +12,7 @@ import {
   Send,
   LayoutGrid,
   ShieldCheck,
+  Award,
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { CmsIdentitySection } from '../cms/CmsIdentitySection';
@@ -22,6 +23,7 @@ import { CmsBannersSection } from '../cms/CmsBannersSection';
 import { CmsQuickCardsSection } from '../cms/CmsQuickCardsSection';
 import { CmsCategoriesSection } from '../cms/CmsCategoriesSection';
 import { CmsCouponsSection } from '../cms/CmsCouponsSection';
+import { CmsLoyaltyPointsSection } from '../cms/CmsLoyaltyPointsSection';
 import { CmsArticlesSection } from '../cms/CmsArticlesSection';
 import { CmsMediaSection } from '../cms/CmsMediaSection';
 import { CmsSeoSection } from '../cms/CmsSeoSection';
@@ -58,6 +60,7 @@ export const CmsTab = ({
     { id: 'quickCards', label: `بطاقات الخدمات السريعة (${(settingsForm.quickCards || []).length || 4})`, icon: LayoutGrid },
     { id: 'categories', label: `الأقسام والتصنيفات (${cmsCategories.length})`, icon: Layers },
     { id: 'coupons', label: `أكواد الخصم (${cmsPromoCodes.length})`, icon: Tag },
+    { id: 'loyaltyPoints', label: 'نقاط الولاء والمكافآت', icon: Award },
     { id: 'articles', label: `المقالات والنصائح (${cmsArticles.length})`, icon: BookOpen },
     { id: 'media', label: `مكتبة الصور والوسائط (${(settingsForm.mediaLibrary || []).length})`, icon: Sparkles },
     { id: 'insurance', label: `جهات التعاقد والتأمين (${(settingsForm.insuranceCompanies || []).length || 6})`, icon: ShieldCheck },
@@ -158,6 +161,14 @@ export const CmsTab = ({
             coupons={cmsPromoCodes}
             onOpenNewCouponModal={onOpenNewCouponModal}
             onDeleteCoupon={onDeleteCoupon}
+          />
+        )}
+
+        {cmsActiveSubTab === 'loyaltyPoints' && (
+          <CmsLoyaltyPointsSection
+            settingsForm={settingsForm}
+            setSettingsForm={setSettingsForm}
+            onSave={onSaveSettings}
           />
         )}
 

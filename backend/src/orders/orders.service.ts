@@ -235,7 +235,7 @@ export class OrdersService {
     // 3. Delivery Fee Calculation
     const defaultDeliveryFee = this.db.settings?.deliveryFee ?? 25;
     const threshold = this.db.settings?.freeDeliveryThreshold ?? 500;
-    const deliveryFee = verifiedSubtotal >= threshold ? 0 : defaultDeliveryFee;
+    let deliveryFee = verifiedSubtotal >= threshold ? 0 : defaultDeliveryFee;
     let discount = 0;
 
     // 4. Promo Code Validation & Per-User Limit
@@ -244,6 +244,11 @@ export class OrdersService {
       const promo = this.db.promoCodes.find((p) => p.code === code && p.isActive);
       if (!promo) {
         throw new BadRequestException('كود الخصم غير صالح أو منتهي الصلاحية');
+      }
+
+      // Check free shipping
+      if (promo.isFreeShipping) {
+        deliveryFee = 0;
       }
 
       // Global limit check
@@ -265,10 +270,29 @@ export class OrdersService {
         throw new BadRequestException(`الحد الأدنى للطلب لتفعيل هذا الكود هو ${promo.minOrderValue} ج.م`);
       }
 
-      discount = Math.min(
-        Math.round((verifiedSubtotal * promo.discountPercentage) / 100),
-        promo.maxDiscount || 9999,
-      );
+      // Category restriction check
+      let eligibleSubtotal = verifiedSubtotal;
+      if (promo.applicableCategory && promo.applicableCategory.trim() && promo.applicableCategory !== 'ALL') {
+        const targetCat = promo.applicableCategory.trim().toLowerCase();
+        const matchingItems = verifiedItems.filter((it) => {
+          const prod = this.db.products.find((p) => p.id === it.productId);
+          const cat = (prod?.category || '').toLowerCase();
+          return cat === targetCat || cat.includes(targetCat) || targetCat.includes(cat);
+        });
+
+        if (matchingItems.length === 0) {
+          throw new BadRequestException(`عذراً، كود الخصم (${promo.code}) صالح فقط لمنتجات قسم (${promo.applicableCategory})`);
+        }
+
+        eligibleSubtotal = matchingItems.reduce((sum, it) => sum + it.price * it.quantity, 0);
+      }
+
+      if (promo.discountPercentage && promo.discountPercentage > 0) {
+        discount = Math.min(
+          Math.round((eligibleSubtotal * promo.discountPercentage) / 100),
+          promo.maxDiscount || 9999,
+        );
+      }
       promo.timesUsed += 1;
     }
 
@@ -331,11 +355,25 @@ export class OrdersService {
 
     this.db.orders.unshift(newOrder);
 
-    // Update customer loyalty points if registered user
+    // Update customer loyalty points if registered user using dynamic CMS settings
     if (dto.customerId) {
       const user = this.db.users.find((u) => u.id === dto.customerId);
-      if (user) {
-        user.points = (user.points || 0) + Math.floor(total / 10);
+      const pointsConfig = this.db.settings?.loyaltyPoints || {
+        isEnabled: true,
+        spendingUnit: 10,
+        pointsPerUnit: 1,
+      };
+      if (user && pointsConfig.isEnabled !== false) {
+        const unit = pointsConfig.spendingUnit > 0 ? pointsConfig.spendingUnit : 10;
+        const ptsPerUnit = pointsConfig.pointsPerUnit > 0 ? pointsConfig.pointsPerUnit : 1;
+        const earned = Math.floor(total / unit) * ptsPerUnit;
+        if (earned > 0) {
+          user.points = (user.points || 0) + earned;
+          this.db.prisma.user.update({
+            where: { id: user.id },
+            data: { points: user.points },
+          }).catch(() => {});
+        }
       }
     }
 
@@ -453,6 +491,27 @@ export class OrdersService {
 
     if (dto.status === 'DELIVERED') {
       order.paymentStatus = 'PAID';
+    }
+
+    if (dto.status === 'CANCELLED' && order.customerId) {
+      const user = this.db.users.find((u) => u.id === order.customerId);
+      const pointsConfig = this.db.settings?.loyaltyPoints || {
+        isEnabled: true,
+        spendingUnit: 10,
+        pointsPerUnit: 1,
+      };
+      if (user && pointsConfig.isEnabled !== false) {
+        const unit = pointsConfig.spendingUnit > 0 ? pointsConfig.spendingUnit : 10;
+        const ptsPerUnit = pointsConfig.pointsPerUnit > 0 ? pointsConfig.pointsPerUnit : 1;
+        const pointsToRevert = Math.floor(order.total / unit) * ptsPerUnit;
+        if (pointsToRevert > 0) {
+          user.points = Math.max(0, (user.points || 0) - pointsToRevert);
+          this.db.prisma.user.update({
+            where: { id: user.id },
+            data: { points: user.points },
+          }).catch(() => {});
+        }
+      }
     }
 
     this.db.persist();

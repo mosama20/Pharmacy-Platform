@@ -18,6 +18,7 @@ import {
   UpdateUserStatusDto,
   UpdateUserRoleDto,
   AdminResetPasswordDto,
+  UpdateUserPointsDto,
 } from './dto/users.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -74,6 +75,16 @@ export class UsersController {
     @Body() dto: AdminResetPasswordDto,
   ) {
     return this.usersService.resetPassword(id, dto.password);
+  }
+
+  @Roles('ADMIN')
+  @Patch(':id/points')
+  async updatePoints(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserPointsDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.usersService.updatePoints(id, dto.points, dto.reason, user);
   }
 
   @Roles('ADMIN')

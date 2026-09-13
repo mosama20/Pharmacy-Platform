@@ -775,6 +775,16 @@ export const api = {
     return res.json();
   },
 
+  updateUserPoints: async (id, points, reason) => {
+    const res = await apiFetch(`/users/${id}/points`, {
+      method: 'PATCH',
+      body: JSON.stringify({ points, reason }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل تحديث نقاط العميل');
+    return data;
+  },
+
   updateUserRole: async (id, role) => {
     const res = await apiFetch(`/users/${id}/role`, {
       method: 'PATCH',
@@ -928,11 +938,11 @@ export const api = {
     return res.json();
   },
 
-  validatePromoCode: async (code, cartTotal) => {
+  validatePromoCode: async (code, cartTotal, items = []) => {
     const res = await fetch(`${API_BASE}/cms/promo-codes/validate`, {
       method: 'POST',
       headers: getHeaders(false),
-      body: JSON.stringify({ code, cartTotal }),
+      body: JSON.stringify({ code, cartTotal, items }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'كود الخصم غير صالح');

@@ -133,6 +133,40 @@ export class UsersService {
     return { success: true, message: 'تم إعادة تعيين كلمة المرور بنجاح' };
   }
 
+  async updatePoints(id: string, points: number, reason?: string, currentUser?: any) {
+    if (points < 0) {
+      throw new BadRequestException('عدد النقاط لا يمكن أن يكون رقماً سالباً');
+    }
+    const user = this.db.users.find((u) => u.id === id);
+    if (!user) throw new NotFoundException('المستخدم غير موجود');
+
+    const oldPoints = user.points || 0;
+    user.points = Math.round(points);
+    this.db.persist();
+
+    await this.audit.log({
+      action: 'USER_POINTS_UPDATE',
+      userId: currentUser?.id,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
+      entity: 'User',
+      entityId: id,
+      oldValue: { points: oldPoints },
+      newValue: { points: user.points, reason: reason || 'تعديل إداري لرصيد نقاط العميل' },
+    });
+
+    await this.db.prisma.user.update({
+      where: { id },
+      data: { points: user.points },
+    }).catch((e) => console.warn('Prisma user updatePoints error:', e));
+
+    const { password, ...safeUser } = user;
+    return {
+      message: 'تم تحديث رصيد نقاط العميل بنجاح',
+      user: safeUser,
+    };
+  }
+
   async deleteUser(id: string, currentUser?: any) {
     if (currentUser && currentUser.id === id) {
       throw new BadRequestException('لا يمكنك حذف حسابك الإداري الحالي');

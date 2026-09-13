@@ -13,6 +13,7 @@ export const CartProvider = ({ children }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [isFreeShippingPromo, setIsFreeShippingPromo] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('app_cart', JSON.stringify(cartItems));
@@ -37,6 +38,7 @@ export const CartProvider = ({ children }) => {
           nameAr: product.nameAr,
           nameEn: product.nameEn,
           activeIngredient: product.activeIngredient,
+          category: product.category,
           price: product.price,
           originalPrice: product.originalPrice,
           image: product.image,
@@ -67,6 +69,7 @@ export const CartProvider = ({ children }) => {
     setCartItems([]);
     setAppliedPromo(null);
     setDiscountAmount(0);
+    setIsFreeShippingPromo(false);
   };
 
   const subtotal = cartItems.reduce(
@@ -77,15 +80,33 @@ export const CartProvider = ({ children }) => {
   const applyPromoCode = async (code) => {
     const clean = code.trim().toUpperCase();
     try {
-      const res = await api.validatePromoCode(clean, subtotal);
-      if (res && res.discountPercentage) {
+      const res = await api.validatePromoCode(clean, subtotal, cartItems);
+      if (res) {
         setAppliedPromo(clean);
-        const disc = Math.min(
-          Math.round((subtotal * res.discountPercentage) / 100),
-          res.maxDiscount || 9999
-        );
+        const freeShip = Boolean(res.isFreeShipping);
+        setIsFreeShippingPromo(freeShip);
+
+        let disc = 0;
+        if (res.calculatedDiscount !== undefined) {
+          disc = res.calculatedDiscount;
+        } else if (res.discountPercentage) {
+          const base = res.eligibleSubtotal !== undefined ? res.eligibleSubtotal : subtotal;
+          disc = Math.min(
+            Math.round((base * res.discountPercentage) / 100),
+            res.maxDiscount || 9999,
+          );
+        }
         setDiscountAmount(disc);
-        return { success: true, message: `تم تطبيق كود الخصم (${res.discountPercentage}%) بنجاح! تم توفير ${disc} ج.م` };
+
+        let msg = `تم تطبيق كود الخصم (${clean}) بنجاح!`;
+        if (freeShip && disc > 0) {
+          msg = `تم تفعيل الشحن المجاني وخصم ${disc} ج.م بنجاح!`;
+        } else if (freeShip) {
+          msg = `تم تفعيل الشحن المجاني بنجاح بكود الخصم!`;
+        } else if (disc > 0) {
+          msg = `تم تطبيق كود الخصم بنجاح! تم توفير ${disc} ج.م`;
+        }
+        return { success: true, message: msg };
       }
     } catch (e) {
       return { success: false, message: e.message || 'كود الخصم غير صالح أو منتهي الصلاحية' };
@@ -95,7 +116,7 @@ export const CartProvider = ({ children }) => {
 
   const standardFee = settings?.deliveryFee !== undefined ? Number(settings.deliveryFee) : 25;
   const freeThreshold = settings?.freeDeliveryThreshold !== undefined ? Number(settings.freeDeliveryThreshold) : 500;
-  const deliveryFee = subtotal >= freeThreshold || subtotal === 0 ? 0 : standardFee;
+  const deliveryFee = (isFreeShippingPromo || subtotal >= freeThreshold || subtotal === 0) ? 0 : standardFee;
   const total = Math.max(0, subtotal + deliveryFee - discountAmount);
   const totalCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -111,6 +132,7 @@ export const CartProvider = ({ children }) => {
         clearCart,
         applyPromoCode,
         appliedPromo,
+        isFreeShippingPromo,
         discountAmount,
         subtotal,
         deliveryFee,

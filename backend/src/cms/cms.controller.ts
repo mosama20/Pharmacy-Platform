@@ -96,7 +96,7 @@ export class CmsController {
 
   @Post('promo-codes/validate')
   validatePromoCode(@Body() body: ValidatePromoCodeDto) {
-    return this.cmsService.validatePromoCode(body.code, body.cartTotal);
+    return this.cmsService.validatePromoCode(body.code, body.cartTotal, body.items);
   }
 
   @Post('promo-codes')
